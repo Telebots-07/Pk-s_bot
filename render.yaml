@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cloner-bot
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: your_telegram_bot_token
+      - key: ADMIN_IDS
+        value: 123456789,987654321
+      - key: RENDER_EXTERNAL_HOSTNAME
+        sync: false
+      - key: FIREBASE_CREDENTIALS
+        value: '{"type": "service_account", ...}' # Replace with Firebase JSON
+      - key: PRIVATE_CHANNEL_ID
+        value: -1001234567890
+    disk:
+      name: temp-files
+      mountPath: /app/temp
+      sizeGB: 1
