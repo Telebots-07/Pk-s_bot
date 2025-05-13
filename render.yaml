@@ -15,6 +15,8 @@ services:
         value: '{"type": "service_account", ...}' # Replace with Firebase JSON
       - key: PRIVATE_CHANNEL_ID
         value: -1001234567890
+      - key: REQUEST_GROUP_LINK
+        value: https://t.me/+your_group_id # Replace with group invite link
     disk:
       name: temp-files
       mountPath: /app/temp
