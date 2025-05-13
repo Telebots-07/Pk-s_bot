@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.logger import log_error
+from utils.firestore import get_group_link
 from features.link_shortener import shorten_url
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -20,12 +21,12 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Restrict to private chats
     if chat_type != "private":
         await update.message.reply_text(
-            "🔍 Use /search in private chats. All group messages are treated as file requests!"
+            "🔍 Please request in this group. All group messages are treated as file requests!"
         )
         log_error(f"Group /search attempt: {query}, user_id: {user_id}")
         return
 
-    # Perform search in private chat
+    # Private chat: Perform search
     try:
         db = context.bot_data.get("firestore_db")
         # Simple text search (can enhance with fuzzy search)
