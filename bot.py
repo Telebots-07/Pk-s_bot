@@ -5,7 +5,7 @@ from firebase_admin import credentials, initialize_app
 from handlers.start import start, help_command, clone_info, about
 from handlers.file_handler import handle_file
 from handlers.tutorial import tutorial, handle_tutorial_callback
-from handlers.settings import settings, shortener, add_channel, set_welcome, autodelete, banner
+from handlers.settings import settings, shortener, add_channel, set_welcome, autodelete, banner, set_group_link
 from handlers.search import search, handle_search_callback
 from handlers.request import handle_request
 from handlers.broadcast import broadcast
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 async def main():
     """Initialize and run the Cloner Bot on Render."""
-    # Initialize Firestore (optional: replace with PostgreSQL)
+    # Initialize Firestore
     cred = credentials.Certificate({
         "type": "service_account",
         # Replace with your Firebase service account key JSON (store in Render env vars)
@@ -30,10 +30,10 @@ async def main():
     initialize_app(cred)
     db = initialize_firestore()
 
-    # Initialize Redis (optional, configure in Render)
+    # Initialize Redis (optional)
     redis_client = initialize_redis()
 
-    # Initialize bot with webhook for Render
+    # Initialize bot with webhook
     application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
 
     # Store shared data
@@ -53,17 +53,17 @@ async def main():
     application.add_handler(CommandHandler("set_welcome", set_welcome))
     application.add_handler(CommandHandler("autodelete", autodelete))
     application.add_handler(CommandHandler("banner", banner))
+    application.add_handler(CommandHandler("set_group_link", set_group_link))
     application.add_handler(CommandHandler("search", search))
     application.add_handler(CommandHandler("broadcast", broadcast))
     application.add_handler(CommandHandler("genbatch", genbatch))
     application.add_handler(CommandHandler("editbatch", editbatch))
     application.add_handler(MessageHandler(filters.Document | filters.Photo | filters.Video | filters.Audio, handle_file))
-    # Handle all text in groups (including commands) as requests
+    # Handle all text in groups as requests
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_request))
     # Ignore non-command text in private DMs
     application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, lambda u, c: None))
-    # Handle unrecognized commands in private DMs as requests
-    application.add_handler(MessageHandler(filters.COMMAND & filters.ChatType.GROUPS & ~filters.Regex("^(start|help|clone_info|about|tutorial|settings|shortener|add_channel|set_welcome|autodelete|banner|search|broadcast|genbatch|editbatch)$"), handle_request))
+    application.add_handler(MessageHandler(filters.COMMAND & filters.ChatType.GROUPS & ~filters.Regex("^(start|help|clone_info|about|tutorial|settings|shortener|add_channel|set_welcome|autodelete|banner|set_group_link|search|broadcast|genbatch|editbatch)$"), handle_request))
     application.add_handler(CallbackQueryHandler(handle_tutorial_callback, pattern="^tutorial_"))
     application.add_handler(CallbackQueryHandler(handle_search_callback, pattern="^(retrieve|delete|suggest)_"))
 
