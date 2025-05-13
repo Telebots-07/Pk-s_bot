@@ -6,19 +6,23 @@ from features.link_shortener import shorten_url
 
 async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all text messages in group chats as file requests."""
-    chat_type = update.message.chat.type
-    if chat_type not in ["group", "supergroup"]:
-        return
-
-    query = context.user_data.get("request_query") or update.message.text.strip()
-    if not query:
-        await update.message.reply_text("📨 Please provide a file name or query.")
-        return
-
     try:
+        chat_type = update.message.chat.type
+        if chat_type not in ["group", "supergroup"]:
+            return
+
+        query = context.user_data.get("request_query") or update.message.text.strip()
+        if not query:
+            await update.message.reply_text("📨 Please provide a file name or query.")
+            return
+
         # Generate request ID
         request_id = str(uuid4())
         db = context.bot_data.get("firestore_db")
+        if not db:
+            await update.message.reply_text("⚠️ Database unavailable. Try again later.")
+            log_error("Firestore DB not initialized")
+            return
 
         # Check for matches (fuzzy search simulation)
         results = db.collection("cloned_files").where("caption", ">=", query).where("caption", "<=", query + "\uf8ff").limit(1).get()
@@ -38,6 +42,8 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Generate shortened startid link
         startid_url = f"https://t.me/{context.bot.username}?start=request_{request_id}"
         shortened_url = await shorten_url(context, startid_url, shortener_name="bitly")
+        if not shortened_url:
+            shortened_url = startid_url  # Fallback to raw URL
 
         # Reply to user
         reply_text = f"📨 **Request submitted:** {query}\nCheck status: {shortened_url}"
@@ -61,31 +67,34 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     [InlineKeyboardButton("Deny", callback_data=f"deny_{request_id}")]
                 ])
             )
-
     except Exception as e:
-        await update.message.reply_text(f"⚠️ Request error: {str(e)}")
+        await update.message.reply_text("⚠️ Error submitting request. Try again.")
         log_error(f"Request error: {str(e)}, query: {query}")
 
 async def handle_request_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle request approval/denial buttons."""
-    query = update.callback_query
-    await query.answer()
-
-    callback_data = query.data
-    action, request_id = callback_data.split("_", 1)
-
-    db = context.bot_data.get("firestore_db")
-    request_doc = db.collection("requests").document(request_id).get()
-
-    if not request_doc.exists:
-        await query.message.reply_text("⚠️ Request not found.")
-        return
-
-    request = request_doc.to_dict()
-    user_id = request["user_id"]
-    query_text = request["query"]
-
     try:
+        query = update.callback_query
+        await query.answer()
+
+        callback_data = query.data
+        action, request_id = callback_data.split("_", 1)
+
+        db = context.bot_data.get("firestore_db")
+        if not db:
+            await query.message.reply_text("⚠️ Database unavailable.")
+            log_error("Firestore DB not initialized")
+            return
+
+        request_doc = db.collection("requests").document(request_id).get()
+        if not request_doc.exists:
+            await query.message.reply_text("⚠️ Request not found.")
+            return
+
+        request = request_doc.to_dict()
+        user_id = request["user_id"]
+        query_text = request["query"]
+
         if action == "approve":
             results = db.collection("cloned_files").where("caption", ">=", query_text).where("caption", "<=", query_text + "\uf8ff").limit(1).get()
             if results:
@@ -107,7 +116,6 @@ async def handle_request_callback(update: Update, context: ContextTypes.DEFAULT_
         db.collection("requests").document(request_id).update({"status": status})
         await context.bot.send_message(chat_id=user_id, text=reply_text)
         await query.message.reply_text(reply_text)
-
     except Exception as e:
-        await query.message.reply_text(f"⚠️ Error processing request: {str(e)}")
+        await query.message.reply_text("⚠️ Error processing request. Try again.")
         log_error(f"Request callback error: {str(e)}, request_id: {request_id}")
