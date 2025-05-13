@@ -58,8 +58,12 @@ async def main():
     application.add_handler(CommandHandler("genbatch", genbatch))
     application.add_handler(CommandHandler("editbatch", editbatch))
     application.add_handler(MessageHandler(filters.Document | filters.Photo | filters.Video | filters.Audio, handle_file))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_request))
-    application.add_handler(MessageHandler(filters.COMMAND & ~filters.Regex("^(start|help|clone_info|about|tutorial|settings|shortener|add_channel|set_welcome|autodelete|banner|search|broadcast|genbatch|editbatch)$"), handle_request))
+    # Handle all text in groups (including commands) as requests
+    application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, handle_request))
+    # Ignore non-command text in private DMs
+    application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, lambda u, c: None))
+    # Handle unrecognized commands in private DMs as requests
+    application.add_handler(MessageHandler(filters.COMMAND & filters.ChatType.GROUPS & ~filters.Regex("^(start|help|clone_info|about|tutorial|settings|shortener|add_channel|set_welcome|autodelete|banner|search|broadcast|genbatch|editbatch)$"), handle_request))
     application.add_handler(CallbackQueryHandler(handle_tutorial_callback, pattern="^tutorial_"))
     application.add_handler(CallbackQueryHandler(handle_search_callback, pattern="^(retrieve|delete|suggest)_"))
 
