@@ -4,8 +4,8 @@ from utils.logger import log_error
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors globally."""
-    error = context.error
     try:
+        error = context.error
         if update and update.effective_message:
             await update.effective_message.reply_text("⚠️ An error occurred. Please try again.")
         log_error(f"Bot error: {str(error)}")
