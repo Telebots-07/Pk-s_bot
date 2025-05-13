@@ -1,35 +1,47 @@
-# Pk-s_bot
-
 Cloner Bot
-A Telegram bot for secure file cloning and management.
+A Telegram bot for cloning files, managing requests, and hosting cloned bots. Created by @bot_paiyan_official.
+Features
 
-File Cloning: Clone photos, videos, documents, audio (up to 2GB).
-Request Workflow: Group text as file requests, private /search redirects to group.
-Dynamic Group Link: Configurable via /settings.
-Link Shortener: Supports bitly, gplinks, modijiurl.
-Cover Image: Add covers to files.
-Tutorial: Admin-only, Firestore-backed.
-Batch Operations: /genbatch, /editbatch for bulk cloning/editing.
-Anti-Ban: Render deployment, redeployment script, backup channels.
+File Cloning: Clone files (photo, video, document, audio; max 2GB) to storage channels.
+Custom Caption & Buttons: Set custom captions (e.g., 🎥 {filename} | {date}) and buttons (e.g., [Download ⬇️]) for files.
+Clone Bot: Host new bot instances via [Clone Bot 🤖]; no user Render deployment.
+Shortener Skip: Skip link shortener for 1 hour post-verification.
+Dynamic Settings: Configure via button menus, stored in DB channel.
+Group Requests: Text as requests, hidden link previews, startid buttons.
+User-Friendly: Nested buttons, emojis (e.g., “✅”, “📂”).
+Anti-Ban: Private channels, redeployment script.
+Render Deployment: Only TELEGRAM_TOKEN, ADMIN_IDS needed.
 
 Setup
 
-Clone the repo: git clone <repo_url>
-Install dependencies: pip install -r requirements.txt
-Set environment variables in Render:
-TELEGRAM_TOKEN
-ADMIN_IDS
-PRIVATE_CHANNEL_ID
-REQUEST_GROUP_LINK
-FIREBASE_CREDENTIALS
+Clone Repo:git clone https://github.com/yourusername/cloner-bot.git
+cd cloner_bot
 
 
-Deploy to Render using render.yaml.
+Set Env Vars in Render:
+TELEGRAM_TOKEN: From @BotFather.
+ADMIN_IDS: Comma-separated admin IDs (e.g., 123456789,987654321).
 
-Usage
 
-Admins: Use /start, /tutorial, /settings, /search, /genbatch, /editbatch.
-Users: Type file names in group to request files.
+Deploy:
+Create Render Web Service, point to repo, use Dockerfile.
+Set env vars in Render dashboard.
 
-License
-MIT
+
+Configure:
+Run /start, use [Settings ⚙️] to set DB channel, log channel, etc.
+Use [Clone Bot 🤖] to create hosted bots.
+
+
+
+Folder Structure
+
+bot.py: Main entry point.
+handlers/: Handlers for commands/callbacks.
+features/: Core features (shortener, cover image, etc.).
+utils/: DB channel, logging, helpers.
+config/: Settings and shortener configs.
+scripts/: Anti-ban scripts.
+
+Contact
+Created by @bot_paiyan_official.
