@@ -3,11 +3,10 @@ from telegram.ext import ContextTypes
 from utils.firestore import get_group_link
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /start command with dynamic group link for admins."""
+    """Handle /start command with dynamic group link."""
     user_id = update.effective_user.id
     is_admin = user_id in context.bot_data.get("ADMIN_IDS", [])
 
-    # Get dynamic group link
     group_link = await get_group_link(context) or os.getenv("REQUEST_GROUP_LINK", "https://t.me/+your_group_id")
 
     if is_admin:
@@ -32,7 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     await update.message.reply_text(
-        "📚 Commands:\n/start - Start the bot\n/help - Show this message\n/search - Search files (admins only, private DM)\n/tutorial - Learn how to use the bot"
+        "📚 Commands:\n/start - Start the bot\n/help - Show this message\n/search - Request files in group (private DM)\n/tutorial - Learn how to use the bot"
     )
 
 async def clone_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
