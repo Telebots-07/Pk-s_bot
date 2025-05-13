@@ -9,7 +9,7 @@ async def shorten_url(context: ContextTypes.DEFAULT_TYPE, url: str, shortener_na
 
     if not shortener_doc.exists:
         log_error(f"Shortener not configured: {shortener_name}")
-        return url  # Fallback to raw URL
+        return url
 
     config = shortener_doc.to_dict()
     api_key = config.get("api_key")
