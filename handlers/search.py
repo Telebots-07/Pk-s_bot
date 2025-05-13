@@ -2,7 +2,6 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.logger import log_error
 from features.link_shortener import shorten_url
-from handlers.request import handle_request
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /search command, private chats only."""
@@ -18,22 +17,18 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🔍 Usage: /search <query>")
         return
 
-    # Check chat type
+    # Restrict to private chats
     if chat_type != "private":
-        # Treat as a request in group chats
         await update.message.reply_text(
-            "🔍 Use /search in private chats. Treating this as a file request!"
+            "🔍 Use /search in private chats. All group messages are treated as file requests!"
         )
         log_error(f"Group /search attempt: {query}, user_id: {user_id}")
-        # Pass to request handler
-        context.user_data["request_query"] = query
-        await handle_request(update, context)
         return
 
-    # Private chat: Perform search
+    # Perform search in private chat
     try:
         db = context.bot_data.get("firestore_db")
-        # Query Firestore (simple text search, can enhance with fuzzy search)
+        # Simple text search (can enhance with fuzzy search)
         results = db.collection("cloned_files").where("caption", ">=", query).where("caption", "<=", query + "\uf8ff").limit(5).get()
 
         if not results:
@@ -99,6 +94,7 @@ async def handle_search_callback(update: Update, context: ContextTypes.DEFAULT_T
     elif action == "delete":
         db = context.bot_data.get("firestore_db")
         try:
+            doc = db.collection("cloned_files").document(value).get()
             db.collection("cloned_files").document(value).delete()
             await context.bot.delete_message(
                 chat_id=os.getenv("PRIVATE_CHANNEL_ID"),
@@ -110,5 +106,7 @@ async def handle_search_callback(update: Update, context: ContextTypes.DEFAULT_T
             log_error(f"Delete error: {str(e)}, searchable_id: {value}")
 
     elif action == "suggest":
+        # Treat suggestion as a request
         context.user_data["request_query"] = value
+        from handlers.request import handle_request
         await handle_request(update, context)
