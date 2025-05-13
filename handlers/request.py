@@ -8,7 +8,7 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all text messages in group chats as file requests."""
     chat_type = update.message.chat.type
     if chat_type not in ["group", "supergroup"]:
-        return  # Silently ignore non-group chats
+        return
 
     query = context.user_data.get("request_query") or update.message.text.strip()
     if not query:
@@ -24,7 +24,6 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
         results = db.collection("cloned_files").where("caption", ">=", query).where("caption", "<=", query + "\uf8ff").limit(1).get()
         suggestion = None
         if not results:
-            # Suggest alternative (e.g., replace 'tamil' with 'telugu')
             alt_query = query.replace("tamil", "telugu") if "tamil" in query.lower() else "leo telugu"
             suggestion = alt_query
 
@@ -88,7 +87,6 @@ async def handle_request_callback(update: Update, context: ContextTypes.DEFAULT_
 
     try:
         if action == "approve":
-            # Forward matching file (simplified; enhance with search)
             results = db.collection("cloned_files").where("caption", ">=", query_text).where("caption", "<=", query_text + "\uf8ff").limit(1).get()
             if results:
                 metadata = results[0].to_dict()
@@ -106,14 +104,8 @@ async def handle_request_callback(update: Update, context: ContextTypes.DEFAULT_
             status = "denied"
             reply_text = "❌ **Request denied.**"
 
-        # Update request status
         db.collection("requests").document(request_id).update({"status": status})
-
-        # Notify user
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=reply_text
-        )
+        await context.bot.send_message(chat_id=user_id, text=reply_text)
         await query.message.reply_text(reply_text)
 
     except Exception as e:
