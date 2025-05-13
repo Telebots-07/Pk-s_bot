@@ -14,7 +14,7 @@ Render Deployment: Only TELEGRAM_TOKEN, ADMIN_IDS needed.
 
 Setup
 
-Clone Repo:git clone https://github.com/yourusername/cloner-bot.git
+Clone Repo:git clone https://github.com/Telebots-07/Pk-s_bot.git
 cd cloner_bot
 
 
