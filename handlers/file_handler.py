@@ -6,26 +6,27 @@ from features.cover_image import add_cover_image
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle incoming files for cloning."""
-    user_id = update.effective_user.id
-    if user_id not in context.bot_data.get("ADMIN_IDS", []):
-        await update.message.reply_text("🚫 Admins only.")
-        return
-
-    file = update.message.document or update.message.photo[-1] if update.message.photo else update.message.video or update.message.audio
-    if not file:
-        await update.message.reply_text("⚠️ Unsupported file type.")
-        return
-
-    # Check file size (2GB max)
-    file_size = getattr(file, "file_size", 0)
-    if file_size > 2 * 1024 * 1024 * 1024:
-        await update.message.reply_text("⚠️ File too large. Max 2GB.")
-        return
-
     try:
+        user_id = update.effective_user.id
+        if user_id not in context.bot_data.get("ADMIN_IDS", []):
+            await update.message.reply_text("🚫 Admins only.")
+            return
+
+        file = update.message.document or (update.message.photo[-1] if update.message.photo else update.message.video or update.message.audio)
+        if not file:
+            await update.message.reply_text("⚠️ Unsupported file type.")
+            return
+
+        # Check file size (2GB max)
+        file_size = getattr(file, "file_size", 0)
+        if file_size > 2 * 1024 * 1024 * 1024:
+            await update.message.reply_text("⚠️ File too large. Max 2GB.")
+            return
+
         # Download file
         file_obj = await file.get_file()
-        file_path = f"/app/temp/{uuid4()}.{file.mime_type.split('/')[-1]}"
+        file_ext = file.mime_type.split('/')[-1] if file.mime_type else "bin"
+        file_path = f"/app/temp/{uuid4()}.{file_ext}"
         await file_obj.download_to_drive(file_path)
 
         # Add cover image (if configured)
@@ -34,6 +35,11 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Forward to private channel
         db = context.bot_data.get("firestore_db")
+        if not db:
+            await update.message.reply_text("⚠️ Database unavailable.")
+            log_error("Firestore DB not initialized")
+            return
+
         caption = update.message.caption or "No caption"
         searchable_id = str(uuid4())
         if update.message.document:
@@ -66,7 +72,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "searchable_id": searchable_id,
             "caption": caption,
             "message_id": sent_message.message_id,
-            "file_type": file.mime_type,
+            "file_type": file.mime_type or "unknown",
             "timestamp": update.message.date.isoformat()
         })
 
@@ -77,7 +83,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("Delete", callback_data=f"delete_{searchable_id}")]
             ])
         )
-
     except Exception as e:
-        await update.message.reply_text(f"⚠️ File cloning error: {str(e)}")
+        await update.message.reply_text("⚠️ Error cloning file. Try again.")
         log_error(f"File cloning error: {str(e)}, user_id: {user_id}")
