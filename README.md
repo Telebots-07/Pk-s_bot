@@ -1,8 +1,7 @@
 # Pk-s_bot
 
 Cloner Bot
-A Telegram bot for secure file cloning and management, inspired by VJ-File-Store.
-Features
+A Telegram bot for secure file cloning and management.
 
 File Cloning: Clone photos, videos, documents, audio (up to 2GB).
 Request Workflow: Group text as file requests, private /search redirects to group.
