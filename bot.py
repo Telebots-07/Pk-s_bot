@@ -14,26 +14,26 @@ from handlers.error import error_handler
 from utils.firestore import initialize_firestore
 from utils.redis_cache import initialize_redis
 
-# Logging setup
+# Logging setup for Render
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
 async def main():
-    """Initialize and run the Cloner Bot."""
-    # Initialize Firestore
+    """Initialize and run the Cloner Bot on Render."""
+    # Initialize Firestore (optional: replace with PostgreSQL)
     cred = credentials.Certificate({
         "type": "service_account",
-        # Replace with your Firebase service account key JSON
+        # Replace with your Firebase service account key JSON (store in Render env vars)
     })
     initialize_app(cred)
     db = initialize_firestore()
 
-    # Initialize Redis
+    # Initialize Redis (optional, configure in Render)
     redis_client = initialize_redis()
 
-    # Initialize bot
+    # Initialize bot with webhook for Render
     application = Application.builder().token(os.getenv("TELEGRAM_TOKEN")).build()
 
     # Store shared data
@@ -66,8 +66,17 @@ async def main():
     # Error handler
     application.add_error_handler(error_handler)
 
-    # Start bot
-    await application.run_polling()
+    # Set webhook for Render
+    webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME')}/webhook"
+    await application.bot.set_webhook(url=webhook_url)
+
+    # Start bot with webhook
+    await application.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 8443)),
+        url_path="/webhook",
+        webhook_url=webhook_url
+    )
 
 if __name__ == "__main__":
     import asyncio
