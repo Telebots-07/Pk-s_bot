@@ -8,10 +8,7 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle all text messages in group chats as file requests."""
     chat_type = update.message.chat.type
     if chat_type not in ["group", "supergroup"]:
-        await update.message.reply_text(
-            "📨 Please use commands like /search or /tutorial in private chats."
-        )
-        return
+        return  # Silently ignore non-group chats
 
     query = context.user_data.get("request_query") or update.message.text.strip()
     if not query:
