@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import set_setting, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 from handlers.start import shortener_menu, handle_shortener_selection, handle_shortener_input
 
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -100,11 +100,11 @@ async def handle_forwarded_message(update: Update, context: ContextTypes.DEFAULT
                 "✅ DB Channel set!",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
-                ])
-            )
-            logger.info(f"✅ DB Channel {channel_id} set by {user_id}")
+                    ])
+                )
+                logger.info(f"✅ DB Channel {channel_id} set by {user_id}")
 
-        context.user_data["setting_action"] = None
-    except Exception as e:
-        await update.message.reply_text("⚠️ Failed to process forwarded message!")
-        await log_error(f"Forwarded message error for {user_id}: {str(e)}")
+            context.user_data["setting_action"] = None
+        except Exception as e:
+            await update.message.reply_text("⚠️ Failed to process forwarded message!")
+            await log_error(f"Forwarded message error for {user_id}: {str(e)}")
