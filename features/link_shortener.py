@@ -1,6 +1,6 @@
 import requests
 import urllib.parse
-from utils.logger import log_error
+from utils.logging_utils import log_error
 from utils.db_channel import get_setting
 
 async def shorten_link(url: str) -> str:
