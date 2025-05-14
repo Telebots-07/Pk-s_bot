@@ -1,7 +1,7 @@
 import os
 import logging
 import asyncio
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
 from handlers.start import start, settings_menu
 from handlers.file_handler import handle_file
 from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input
@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def main():
+def main():
     """Initialize and run the bot with support for cloned bots and custom captions/buttons."""
     # Load static env vars
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -33,7 +33,7 @@ async def main():
     if not TELEGRAM_TOKEN or not ADMIN_IDS:
         error_msg = "Missing TELEGRAM_TOKEN or ADMIN_IDS"
         logger.error(error_msg)
-        await log_error(error_msg)
+        log_error(error_msg)
         raise ValueError(error_msg)
 
     try:
@@ -41,119 +41,102 @@ async def main():
     except ValueError:
         error_msg = "Invalid ADMIN_IDS format"
         logger.error(error_msg)
-        await log_error(error_msg)
+        log_error(error_msg)
         raise ValueError(error_msg)
 
     context_data = {"admin_ids": admin_ids}
 
     # Initialize main bot
     try:
-        main_app = Application.builder().token(TELEGRAM_TOKEN).build()
-        main_app.bot_data.update(context_data)
+        updater = Updater(TELEGRAM_TOKEN, use_context=True)
+        dispatcher = updater.dispatcher
+        dispatcher.bot_data.update(context_data)
         logger.info("Main bot initialized")
     except Exception as e:
         error_msg = f"Failed to initialize main bot: {str(e)}"
         logger.error(error_msg)
-        await log_error(error_msg)
+        log_error(error_msg)
         raise
 
     # Add handlers for main bot
-    main_app.add_handler(CommandHandler("start", start))
-    main_app.add_handler(CommandHandler("search", search))
-    main_app.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
-    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
-    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
-    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_clone_input))
-    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
-    main_app.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
-    main_app.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
-    main_app.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
-    main_app.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
-    main_app.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
-    main_app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
-    main_app.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
-    main_app.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
-    main_app.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
-    main_app.add_error_handler(error_handler)
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("search", search))
+    dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_clone_input))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+    dispatcher.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
+    dispatcher.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
+    dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
+    dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
+    dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
+    dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
+    dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
+    dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
+    dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
+    dispatcher.add_error_handler(error_handler)
 
     # Load cloned bots from DB channel
     try:
-        cloned_bots = await get_cloned_bots()
+        cloned_bots = get_cloned_bots()
         logger.info(f"Loaded {len(cloned_bots)} cloned bots")
     except Exception as e:
         error_msg = f"Failed to load cloned bots: {str(e)}"
         logger.error(error_msg)
-        await log_error(error_msg)
+        log_error(error_msg)
         cloned_bots = []
 
     bot_instances = []
     for bot in cloned_bots:
         try:
             token = bot["token"]
-            app = Application.builder().token(token).build()
-            app.bot_data.update(context_data)
-            app.add_handler(CommandHandler("start", start))
-            app.add_handler(CommandHandler("search", search))
-            app.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
-            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
-            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
-            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
-            app.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
-            app.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
-            app.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
-            app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
-            app.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
-            app.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
-            app.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
-            app.add_error_handler(error_handler)
-            bot_instances.append(app)
+            clone_updater = Updater(token, use_context=True)
+            clone_dispatcher = clone_updater.dispatcher
+            clone_dispatcher.bot_data.update(context_data)
+            clone_dispatcher.add_handler(CommandHandler("start", start))
+            clone_dispatcher.add_handler(CommandHandler("search", search))
+            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
+            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
+            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+            clone_dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
+            clone_dispatcher.add_error_handler(error_handler)
+            bot_instances.append(clone_updater)
             logger.info(f"Started cloned bot with token ending {token[-4:]}")
         except Exception as e:
             error_msg = f"Failed to start cloned bot: {str(e)}"
             logger.error(error_msg)
-            await log_error(error_msg)
+            log_error(error_msg)
 
-    # Start all bot instances
+    # Start main bot
     try:
-        await main_app.initialize()
-        await main_app.start()
+        updater.start_polling()
         logger.info("Main bot started")
     except Exception as e:
         error_msg = f"Failed to start main bot: {str(e)}"
         logger.error(error_msg)
-        await log_error(error_msg)
+        log_error(error_msg)
         raise
 
-    for app in bot_instances:
+    # Start cloned bots
+    for clone_updater in bot_instances:
         try:
-            await app.initialize()
-            await app.start()
+            clone_updater.start_polling()
             logger.info("Cloned bot instance started")
         except Exception as e:
             error_msg = f"Failed to start cloned bot instance: {str(e)}"
             logger.error(error_msg)
-            await log_error(error_msg)
+            log_error(error_msg)
 
-    # Set webhook with retries
-    webhook_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'cloner-bot.onrender.com')}/webhook"
-    for attempt in range(3):
-        try:
-            await main_app.updater.start_webhook(
-                listen="0.0.0.0",
-                port=int(os.getenv("PORT", 8443)),
-                url_path="/webhook",
-                webhook_url=webhook_url
-            )
-            logger.info(f"Webhook set: {webhook_url}")
-            break
-        except Exception as e:
-            error_msg = f"Webhook attempt {attempt + 1} failed: {str(e)}"
-            logger.error(error_msg)
-            await log_error(error_msg)
-            if attempt == 2:
-                raise
-            await asyncio.sleep(5)
+    # Keep the main thread running
+    updater.idle()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
