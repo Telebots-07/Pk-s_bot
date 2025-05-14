@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle errors."""
