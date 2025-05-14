@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import set_setting, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def set_custom_caption(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle custom caption setup."""
