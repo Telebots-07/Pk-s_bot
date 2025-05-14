@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show interactive tutorial."""
