@@ -8,24 +8,29 @@ import uuid
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle file uploads and apply custom captions/buttons."""
-    if str(update.effective_user.id) not in context.bot_data.get("admin_ids", []):
+    user_id = update.effective_user.id
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
         await update.message.reply_text("⚠️ Admins only!")
+        await log_error(f"Unauthorized file upload by {user_id}")
         return
 
     file = update.message.document or (update.message.photo[-1] if update.message.photo else update.message.video or update.message.audio)
     if not file:
         await update.message.reply_text("⚠️ Unsupported file type!")
+        await log_error(f"Invalid file type by {user_id}")
         return
 
     file_size = file.file_size / (1024 * 1024)  # Size in MB
     if file_size > 2000:
         await update.message.reply_text("⚠️ File too large! Max 2GB.")
+        await log_error(f"File too large by {user_id}: {file_size}MB")
         return
 
     # Get storage channel
     storage_channels = await get_setting("storage_channels", [])
     if not storage_channels:
         await update.message.reply_text("⚠️ No storage channels set!")
+        await log_error(f"No storage channels for {user_id}")
         return
 
     # Clone file to storage channel
@@ -39,7 +44,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception as e:
         await update.message.reply_text("⚠️ Failed to clone file!")
-        await log_error(f"File cloning error: {str(e)}")
+        await log_error(f"File cloning error for {user_id}: {str(e)}")
         return
 
     # Get custom caption and buttons
@@ -55,10 +60,11 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_link = f"https://t.me/@BotPaiyanOfficial?start={file_id}"
     short_link = file_link
     try:
-        if not await is_shortener_skipped(update.effective_user.id):
+        if not await is_shortener_skipped(user_id):
             short_link = await shorten_link(file_link)
+        logger.info(f"✅ Short link generated: {short_link}")
     except Exception as e:
-        await log_error(f"Shortener error: {str(e)}")
+        await log_error(f"Shortener error for {user_id}: {str(e)}")
 
     # Format caption
     try:
@@ -67,12 +73,15 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             date=date,
             size=round(file_size, 2),
             file_id=file_id,
-            user_id=update.effective_user.id,
+            user_id=user_id,
             file_link=short_link
         )
+        if len(caption) > 4096:
+            caption = caption[:4093] + "..."
+            await log_error(f"Caption truncated for {user_id}")
     except Exception as e:
         caption = f"🎥 {filename} | Uploaded: {date} | Size: {file_size:.2f}MB"
-        await log_error(f"Caption formatting error: {str(e)}")
+        await log_error(f"Caption formatting error for {user_id}: {str(e)}")
 
     # Format buttons
     keyboard = []
@@ -81,15 +90,15 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             if "url" in btn:
                 url = btn["url"].format(file_link=short_link, file_id=file_id)
-                if not url.startswith("http"):
+                if not url.startswith(("http://", "https://")):
                     url = file_link
-                    await log_error(f"Invalid URL in button: {btn['url']}")
+                    await log_error(f"Invalid URL in button for {user_id}: {btn['url']}")
                 keyboard.append([InlineKeyboardButton(text, url=url)])
             elif "callback" in btn:
                 callback = btn["callback"].format(file_id=file_id)
                 keyboard.append([InlineKeyboardButton(text, callback_data=callback)])
         except Exception as e:
-            await log_error(f"Button formatting error: {str(e)}")
+            await log_error(f"Button formatting error for {user_id}: {str(e)}")
             continue
 
     # Update message with caption and buttons
@@ -97,21 +106,28 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.edit_message_caption(
             chat_id=storage_channel,
             message_id=message.message_id,
-            caption=caption[:4096],
+            caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard if keyboard else None)
         )
+        logger.info(f"✅ Caption/buttons set for file {file_id}")
     except Exception as e:
-        await log_error(f"Failed to set caption/buttons: {str(e)}")
+        await update.message.reply_text("⚠️ Failed to set caption/buttons!")
+        await log_error(f"Caption/buttons error for {user_id}: {str(e)}")
 
     # Store metadata
-    await store_file_metadata({
-        "searchable_id": file_id,
-        "filename": filename,
-        "message_id": message.message_id,
-        "chat_id": storage_channel,
-        "size": file_size,
-        "date": date
-    })
+    try:
+        await store_file_metadata({
+            "searchable_id": file_id,
+            "filename": filename,
+            "message_id": message.message_id,
+            "chat_id": storage_channel,
+            "size": file_size,
+            "date": date
+        })
+        logger.info(f"✅ Metadata stored for file {file_id}")
+    except Exception as e:
+        await update.message.reply_text("⚠️ Failed to store file metadata!")
+        await log_error(f"Metadata error for {user_id}: {str(e)}")
 
     await update.message.reply_text(
         "✅ File cloned!",
@@ -120,13 +136,20 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("Delete 🗑️", callback_data=f"delete_{file_id}")]
         ])
     )
-    await log_error(f"File cloned by {update.effective_user.id}: {filename}")
+    await log_error(f"✅ File cloned by {user_id}: {filename}")
 
 async def is_shortener_skipped(user_id: int) -> bool:
     """Check if shortener should be skipped."""
     from datetime import datetime, timedelta
-    verification = await get_setting(f"verifications_{user_id}")
-    if not verification:
+    try:
+        verification = await get_setting(f"verifications_{user_id}")
+        if not verification:
+            return False
+        timestamp = datetime.fromisoformat(verification["timestamp"])
+        skipped = datetime.now() < timestamp + timedelta(hours=1)
+        if skipped:
+            logger.info(f"✅ Shortener skipped for {user_id}")
+        return skipped
+    except Exception as e:
+        await log_error(f"Shortener skip check error for {user_id}: {str(e)}")
         return False
-    timestamp = datetime.fromisoformat(verification["timestamp"])
-    return datetime.now() < timestamp + timedelta(hours=1)
