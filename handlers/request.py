@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import store_file_metadata, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 import uuid
 
 async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
