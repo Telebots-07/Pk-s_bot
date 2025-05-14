@@ -1,6 +1,6 @@
 import asyncio
 from telegram import Bot
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def set_auto_delete(bot: Bot, chat_id: str, message_id: int, hours: int):
     """Set auto-delete for messages."""
