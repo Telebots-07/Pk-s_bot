@@ -1,5 +1,5 @@
 from PIL import Image
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def add_cover_image(file, cover):
     """Add cover image to files."""
