@@ -1,26 +1,13 @@
-from telegram.ext import ContextTypes
+import asyncio
+from telegram import Bot
 from utils.logger import log_error
 
-async def schedule_auto_delete(context: ContextTypes.DEFAULT_TYPE, message_id: int, chat_id: str, hours: int):
-    """Schedule message/file deletion."""
+async def set_auto_delete(bot: Bot, chat_id: str, message_id: int, hours: int):
+    """Set auto-delete for messages."""
     try:
-        job = context.job_queue.run_once(
-            delete_message,
-            hours * 3600,
-            data={"message_id": message_id, "chat_id": chat_id}
-        )
-        return job
+        await asyncio.sleep(hours * 3600)
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+        logger.info(f"✅ Message {message_id} deleted from {chat_id}")
     except Exception as e:
-        log_error(f"Auto-delete schedule error: {str(e)}")
-        return None
-
-async def delete_message(context: ContextTypes.DEFAULT_TYPE):
-    """Delete scheduled message."""
-    job = context.job
-    try:
-        await context.bot.delete_message(
-            chat_id=job.data["chat_id"],
-            message_id=job.data["message_id"]
-        )
-    except Exception as e:
-        log_error(f"Auto-delete error: {str(e)}")
+        await log_error(f"Auto-delete error: {str(e)}")
+        logger.info(f"⚠️ Failed to delete message {message_id}")
