@@ -1,7 +1,7 @@
 import os
 import logging
 import asyncio
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
 from handlers.start import start, settings_menu
 from handlers.file_handler import handle_file
 from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input
@@ -31,7 +31,7 @@ async def main():
     ADMIN_IDS = os.getenv("ADMIN_IDS")
 
     if not TELEGRAM_TOKEN or not ADMIN_IDS:
-        error_msg = "⚠️ Missing TELEGRAM_TOKEN or ADMIN_IDS"
+        error_msg = "Missing TELEGRAM_TOKEN or ADMIN_IDS"
         logger.error(error_msg)
         await log_error(error_msg)
         raise ValueError(error_msg)
@@ -39,7 +39,7 @@ async def main():
     try:
         admin_ids = [int(id.strip()) for id in ADMIN_IDS.split(",")]
     except ValueError:
-        error_msg = "⚠️ Invalid ADMIN_IDS format"
+        error_msg = "Invalid ADMIN_IDS format"
         logger.error(error_msg)
         await log_error(error_msg)
         raise ValueError(error_msg)
@@ -50,9 +50,9 @@ async def main():
     try:
         main_app = Application.builder().token(TELEGRAM_TOKEN).build()
         main_app.bot_data.update(context_data)
-        logger.info("✅ Main bot initialized")
+        logger.info("Main bot initialized")
     except Exception as e:
-        error_msg = f"⚠️ Failed to initialize main bot: {str(e)}"
+        error_msg = f"Failed to initialize main bot: {str(e)}"
         logger.error(error_msg)
         await log_error(error_msg)
         raise
@@ -60,11 +60,11 @@ async def main():
     # Add handlers for main bot
     main_app.add_handler(CommandHandler("start", start))
     main_app.add_handler(CommandHandler("search", search))
-    main_app.add_handler(MessageHandler(filters.DOCUMENT | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_file))
-    main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_caption_input))
-    main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons_input))
-    main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clone_input))
-    main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_request))
+    main_app.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
+    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
+    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_clone_input))
+    main_app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
     main_app.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
     main_app.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
     main_app.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
@@ -79,9 +79,9 @@ async def main():
     # Load cloned bots from DB channel
     try:
         cloned_bots = await get_cloned_bots()
-        logger.info(f"✅ Loaded {len(cloned_bots)} cloned bots")
+        logger.info(f"Loaded {len(cloned_bots)} cloned bots")
     except Exception as e:
-        error_msg = f"⚠️ Failed to load cloned bots: {str(e)}"
+        error_msg = f"Failed to load cloned bots: {str(e)}"
         logger.error(error_msg)
         await log_error(error_msg)
         cloned_bots = []
@@ -94,10 +94,10 @@ async def main():
             app.bot_data.update(context_data)
             app.add_handler(CommandHandler("start", start))
             app.add_handler(CommandHandler("search", search))
-            app.add_handler(MessageHandler(filters.DOCUMENT | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_file))
-            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_caption_input))
-            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons_input))
-            app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_request))
+            app.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
+            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
+            app.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
             app.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
             app.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
             app.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
@@ -107,9 +107,9 @@ async def main():
             app.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
             app.add_error_handler(error_handler)
             bot_instances.append(app)
-            logger.info(f"✅ Started cloned bot with token ending {token[-4:]}")
+            logger.info(f"Started cloned bot with token ending {token[-4:]}")
         except Exception as e:
-            error_msg = f"⚠️ Failed to start cloned bot: {str(e)}"
+            error_msg = f"Failed to start cloned bot: {str(e)}"
             logger.error(error_msg)
             await log_error(error_msg)
 
@@ -117,9 +117,9 @@ async def main():
     try:
         await main_app.initialize()
         await main_app.start()
-        logger.info("✅ Main bot started")
+        logger.info("Main bot started")
     except Exception as e:
-        error_msg = f"⚠️ Failed to start main bot: {str(e)}"
+        error_msg = f"Failed to start main bot: {str(e)}"
         logger.error(error_msg)
         await log_error(error_msg)
         raise
@@ -128,9 +128,9 @@ async def main():
         try:
             await app.initialize()
             await app.start()
-            logger.info("✅ Cloned bot instance started")
+            logger.info("Cloned bot instance started")
         except Exception as e:
-            error_msg = f"⚠️ Failed to start cloned bot instance: {str(e)}"
+            error_msg = f"Failed to start cloned bot instance: {str(e)}"
             logger.error(error_msg)
             await log_error(error_msg)
 
@@ -144,10 +144,10 @@ async def main():
                 url_path="/webhook",
                 webhook_url=webhook_url
             )
-            logger.info(f"✅ Webhook set: {webhook_url}")
+            logger.info(f"Webhook set: {webhook_url}")
             break
         except Exception as e:
-            error_msg = f"⚠️ Webhook attempt {attempt + 1} failed: {str(e)}"
+            error_msg = f"Webhook attempt {attempt + 1} failed: {str(e)}"
             logger.error(error_msg)
             await log_error(error_msg)
             if attempt == 2:
