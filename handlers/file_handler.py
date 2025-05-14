@@ -10,7 +10,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle file uploads and apply custom captions/buttons."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
-        await update.message.reply_text("⚠️ Admins only!")
+        await update.message.reply_text("Admins only!")
         await log_error(f"Unauthorized file upload by {user_id}")
         return
 
@@ -26,20 +26,20 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file = message.audio
 
     if not file:
-        await update.message.reply_text("⚠️ Unsupported file type!")
+        await update.message.reply_text("Unsupported file type!")
         await log_error(f"Invalid file type by {user_id}")
         return
 
     file_size = file.file_size / (1024 * 1024)  # Size in MB
     if file_size > 2000:
-        await update.message.reply_text("⚠️ File too large! Max 2GB.")
+        await update.message.reply_text("File too large! Max 2GB.")
         await log_error(f"File too large by {user_id}: {file_size}MB")
         return
 
     # Get storage channel
     storage_channels = await get_setting("storage_channels", [])
     if not storage_channels:
-        await update.message.reply_text("⚠️ No storage channels set!")
+        await update.message.reply_text("No storage channels set!")
         await log_error(f"No storage channels for {user_id}")
         return
 
@@ -53,15 +53,15 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message_id=update.message.message_id
         )
     except Exception as e:
-        await update.message.reply_text("⚠️ Failed to clone file!")
+        await update.message.reply_text("Failed to clone file!")
         await log_error(f"File cloning error for {user_id}: {str(e)}")
         return
 
     # Get custom caption and buttons
-    custom_caption = await get_setting("custom_caption", "🎥 {filename} | Uploaded: {date} | Size: {size}MB | By: @bot_paiyan_official")
+    custom_caption = await get_setting("custom_caption", "File: {filename} | Uploaded: {date} | Size: {size}MB | By: @bot_paiyan_official")
     custom_buttons = await get_setting("custom_buttons", [
-        {"text": "Download ⬇️", "url": "{file_link}"},
-        {"text": "Share 🔗", "callback": "share_file_{file_id}"}
+        {"text": "Download", "url": "{file_link}"},
+        {"text": "Share", "callback": "share_file_{file_id}"}
     ])
 
     # Prepare metadata
@@ -72,7 +72,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if not await is_shortener_skipped(user_id):
             short_link = await shorten_link(file_link)
-        logger.info(f"✅ Short link generated: {short_link}")
+        logger.info(f"Short link generated: {short_link}")
     except Exception as e:
         await log_error(f"Shortener error for {user_id}: {str(e)}")
 
@@ -90,7 +90,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption = caption[:4093] + "..."
             await log_error(f"Caption truncated for {user_id}")
     except Exception as e:
-        caption = f"🎥 {filename} | Uploaded: {date} | Size: {file_size:.2f}MB"
+        caption = f"File: {filename} | Uploaded: {date} | Size: {file_size:.2f}MB"
         await log_error(f"Caption formatting error for {user_id}: {str(e)}")
 
     # Format buttons
@@ -119,9 +119,9 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             caption=caption,
             reply_markup=InlineKeyboardMarkup(keyboard if keyboard else None)
         )
-        logger.info(f"✅ Caption/buttons set for file {file_id}")
+        logger.info(f"Caption/buttons set for file {file_id}")
     except Exception as e:
-        await update.message.reply_text("⚠️ Failed to set caption/buttons!")
+        await update.message.reply_text("Failed to set caption/buttons!")
         await log_error(f"Caption/buttons error for {user_id}: {str(e)}")
 
     # Store metadata
@@ -134,19 +134,19 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "size": file_size,
             "date": date
         })
-        logger.info(f"✅ Metadata stored for file {file_id}")
+        logger.info(f"Metadata stored for file {file_id}")
     except Exception as e:
-        await update.message.reply_text("⚠️ Failed to store file metadata!")
+        await update.message.reply_text("Failed to store file metadata!")
         await log_error(f"Metadata error for {user_id}: {str(e)}")
 
     await update.message.reply_text(
-        "✅ File cloned!",
+        "File cloned!",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("Retrieve 🔍", callback_data=f"retrieve_{file_id}"),
-             InlineKeyboardButton("Delete 🗑️", callback_data=f"delete_{file_id}")]
+            [InlineKeyboardButton("Retrieve", callback_data=f"retrieve_{file_id}"),
+             InlineKeyboardButton("Delete", callback_data=f"delete_{file_id}")]
         ])
     )
-    await log_error(f"✅ File cloned by {user_id}: {filename}")
+    await log_error(f"File cloned by {user_id}: {filename}")
 
 async def is_shortener_skipped(user_id: int) -> bool:
     """Check if shortener should be skipped."""
@@ -158,7 +158,7 @@ async def is_shortener_skipped(user_id: int) -> bool:
         timestamp = datetime.fromisoformat(verification["timestamp"])
         skipped = datetime.now() < timestamp + timedelta(hours=1)
         if skipped:
-            logger.info(f"✅ Shortener skipped for {user_id}")
+            logger.info(f"Shortener skipped for {user_id}")
         return skipped
     except Exception as e:
         await log_error(f"Shortener skip check error for {user_id}: {str(e)}")
