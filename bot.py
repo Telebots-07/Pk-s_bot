@@ -60,7 +60,7 @@ async def main():
     # Add handlers for main bot
     main_app.add_handler(CommandHandler("start", start))
     main_app.add_handler(CommandHandler("search", search))
-    main_app.add_handler(MessageHandler(filters.Document | filters.Photo | filters.Video | filters.Audio, handle_file))
+    main_app.add_handler(MessageHandler(filters.DOCUMENT | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_file))
     main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_caption_input))
     main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons_input))
     main_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_clone_input))
@@ -94,7 +94,7 @@ async def main():
             app.bot_data.update(context_data)
             app.add_handler(CommandHandler("start", start))
             app.add_handler(CommandHandler("search", search))
-            app.add_handler(MessageHandler(filters.Document | filters.Photo | filters.Video | filters.Audio, handle_file))
+            app.add_handler(MessageHandler(filters.DOCUMENT | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_file))
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_caption_input))
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons_input))
             app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_request))
@@ -102,16 +102,10 @@ async def main():
             app.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
             app.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
             app.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
-            app.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
-            app.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
-            app.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
-            app.add_error_handler(error_handler)
-            bot_instances.append(app)
-            logger.info(f"✅ Started cloned bot with token ending {token[-4:]}")
-        except Exception as e:
-            error_msg = f"⚠️ Failed to start cloned bot: {str(e)}"
-            logger.error(error_msg)
-            await log_error(error_msg)
+            main_app.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
+    main_app.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
+    main_app.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
+    main_app.add_error_handler(error_handler)
 
     # Start all bot instances
     try:
