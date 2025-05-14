@@ -100,11 +100,11 @@ async def handle_forwarded_message(update: Update, context: ContextTypes.DEFAULT
                 "✅ DB Channel set!",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
-                    ])
-                )
-                logger.info(f"✅ DB Channel {channel_id} set by {user_id}")
+                ])
+            )
+            logger.info(f"✅ DB Channel {channel_id} set by {user_id}")
 
-            context.user_data["setting_action"] = None
-        except Exception as e:
-            await update.message.reply_text("⚠️ Failed to process forwarded message!")
-            await log_error(f"Forwarded message error for {user_id}: {str(e)}")
+        context.user_data["setting_action"] = None
+    except Exception as e:
+        await update.message.reply_text("⚠️ Failed to process forwarded message!")
+        await log_error(f"Forwarded message error for {user_id}: {str(e)}")
