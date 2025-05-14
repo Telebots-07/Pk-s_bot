@@ -13,7 +13,7 @@ from handlers.tutorial import tutorial
 from handlers.settings import handle_settings
 from handlers.broadcast import broadcast
 from handlers.batch import batch
-from utils.logger import log_error
+from utils.logging_utils import log_error
 from utils.db_channel import get_cloned_bots
 from config.settings import load_settings
 
