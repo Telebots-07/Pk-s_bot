@@ -17,6 +17,24 @@ def get_setting(key: str, default=None):
         log_error(f"Error retrieving setting {key}: {str(e)}")
         return default
 
+def set_setting(key: str, value):
+    """Store a setting in the database channel."""
+    try:
+        # Placeholder for DB channel logic
+        # In a real implementation, this would store in a Telegram channel or database
+        try:
+            with open("config/settings.json", "r") as f:
+                settings = json.load(f)
+        except FileNotFoundError:
+            settings = {}
+        
+        settings[key] = value
+        with open("config/settings.json", "w") as f:
+            json.dump(settings, f, indent=2)
+        logger.info(f"Stored setting {key}")
+    except Exception as e:
+        log_error(f"Error storing setting {key}: {str(e)}")
+
 def store_file_metadata(metadata: dict):
     """Store file metadata in the database channel."""
     try:
