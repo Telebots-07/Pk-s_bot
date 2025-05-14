@@ -1,5 +1,5 @@
 from utils.db_channel import set_setting, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def add_storage_channel(channel_id: str):
     """Add a storage channel."""
