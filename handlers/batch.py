@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def batch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle batch operations."""
