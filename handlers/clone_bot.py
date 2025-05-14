@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import set_setting, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 import uuid
 
 async def create_clone_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,7 +44,7 @@ async def handle_clone_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not context.user_data.get("creating_clone"):
         return
 
-    user_id = update.effective_user.id
+    user_id = update.message.from_user.id
     text = update.message.text
     try:
         admin_id = int(text)
