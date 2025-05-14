@@ -1,14 +1,6 @@
 {
-  "bitly": {
-    "name": "bitly",
-    "endpoint": "https://api-ssl.bitly.com/v4/shorten"
-  },
-  "gplinks": {
-    "name": "gplinks",
-    "endpoint": "https://api.gplinks.in/shorten"
-  },
-  "modijiurl": {
-    "name": "modijiurl",
-    "endpoint": "https://api.modijiurl.com/shorten"
-  }
+    "bitly": {"api_key": ""},
+    "gplinks": {"api_key": "your_gplinks_api_token_here"},
+    "modijiurl": {"api_key": ""},
+    "other": {"api_key": ""}
 }
