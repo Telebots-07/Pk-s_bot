@@ -1,7 +1,7 @@
 import json
 import asyncio
 from telegram import Bot
-from utils.logger import log_error
+from utils.logging_utils import log_error
 import os
 
 db_lock = asyncio.Lock()
