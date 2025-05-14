@@ -2,11 +2,11 @@ Cloner Bot
 A Telegram bot for cloning files, managing requests, and hosting cloned bots. Created by @bot_paiyan_official.
 Features
 
-File Cloning: Clone files (photo, video, document, audio; max 2GB) to storage channels.
-Custom Caption & Buttons: Set custom captions (e.g., 🎥 {filename} | {date}) and buttons (e.g., [Download ⬇️]) for files.
-Clone Bot: Host new bot instances via [Clone Bot 🤖]; no user Render deployment.
-Shortener Skip: Skip link shortener for 1 hour post-verification.
-Dynamic Settings: Configure via button menus, stored in DB channel.
+File Cloning: Clone files (photo, video, document, audio; max 2GB) to storage channels with success/failure messages (e.g., “✅ File cloned!”).
+Custom Caption & Buttons: Set captions (e.g., 🎥 {filename}) and buttons (e.g., [Download ⬇️]) with validated links.
+Clone Bot: Host new bots via [Clone Bot 🤖]; no user Render deployment.
+Shortener Skip: Skip shortener for 1 hour post-verification.
+Dynamic Settings: Configure via buttons, stored in DB channel, with success/failure feedback.
 Group Requests: Text as requests, hidden link previews, startid buttons.
 User-Friendly: Nested buttons, emojis (e.g., “✅”, “📂”).
 Anti-Ban: Private channels, redeployment script.
@@ -14,7 +14,7 @@ Render Deployment: Only TELEGRAM_TOKEN, ADMIN_IDS needed.
 
 Setup
 
-Clone Repo:git clone https://github.com/Telebots-07/Pk-s_bot.git
+Clone Repo:git clone https://github.com/yourusername/cloner-bot.git
 cd cloner_bot
 
 
@@ -37,7 +37,7 @@ Use [Clone Bot 🤖] to create hosted bots.
 Folder Structure
 
 bot.py: Main entry point.
-handlers/: Handlers for commands/callbacks.
+handlers/: Command/callback handlers.
 features/: Core features (shortener, cover image, etc.).
 utils/: DB channel, logging, helpers.
 config/: Settings and shortener configs.
