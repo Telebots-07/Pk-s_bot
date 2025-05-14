@@ -14,7 +14,17 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await log_error(f"Unauthorized file upload by {user_id}")
         return
 
-    file = update.message.document or (update.message.photo[-1] if update.message.photo else update.message.video or update.message.audio)
+    message = update.message
+    file = None
+    if message.document:
+        file = message.document
+    elif message.photo:
+        file = message.photo[-1]  # Get the highest resolution photo
+    elif message.video:
+        file = message.video
+    elif message.audio:
+        file = message.audio
+
     if not file:
         await update.message.reply_text("⚠️ Unsupported file type!")
         await log_error(f"Invalid file type by {user_id}")
