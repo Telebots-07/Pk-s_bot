@@ -1,4 +1,4 @@
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def redeploy():
     """Redeploy on Render."""
