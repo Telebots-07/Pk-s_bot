@@ -1,6 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.db_channel import get_setting
+from utils.db_channel import get_setting, set_setting
 from utils.logger import log_error
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -95,3 +95,104 @@ async def settings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await query.message.reply_text("⚠️ Failed to show settings menu!")
         await log_error(f"Settings menu error for {user_id}: {str(e)}")
+
+async def shortener_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show shortener submenu."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        await query.message.reply_text("⚠️ Admins only!")
+        await log_error(f"Unauthorized shortener access by {user_id}")
+        return
+
+    try:
+        keyboard = [
+            [InlineKeyboardButton("GPLinks 🔗", callback_data="set_shortener_gplinks"),
+             InlineKeyboardButton("ModijiURL 🔗", callback_data="set_shortener_modijiurl")],
+            [InlineKeyboardButton("Other 🔗", callback_data="set_shortener_other"),
+             InlineKeyboardButton("Back ⬅️", callback_data="settings")]
+        ]
+        await query.message.edit_text("🔗 Select a Shortener", reply_markup=InlineKeyboardMarkup(keyboard))
+        logger.info(f"✅ Shortener menu shown for {user_id}")
+    except Exception as e:
+        await query.message.reply_text("⚠️ Failed to show shortener menu!")
+        await log_error(f"Shortener menu error for {user_id}: {str(e)}")
+
+async def handle_shortener_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle shortener selection."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        await query.message.reply_text("⚠️ Admins only!")
+        await log_error(f"Unauthorized shortener selection by {user_id}")
+        return
+
+    action = query.data
+    try:
+        if action == "set_shortener_gplinks":
+            # Check if GPLinks API token is set
+            shortener = await get_setting("shortener", {"type": "none", "api_key": ""})
+            if not shortener.get("api_key"):
+                await query.message.reply_text(
+                    "🔑 Enter your GPLinks API token.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Cancel ❌", callback_data="cancel_shortener")]
+                    ])
+                )
+                context.user_data["setting_shortener"] = "gplinks"
+                logger.info(f"✅ GPLinks token input initiated by {user_id}")
+            else:
+                await set_setting("shortener", {"type": "gplinks", "api_key": shortener["api_key"]})
+                await query.message.reply_text(
+                    "✅ Shortener set to GPLinks!",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
+                    ])
+                )
+                logger.info(f"✅ Shortener set to GPLinks by {user_id}")
+        elif action in ["set_shortener_modijiurl", "set_shortener_other"]:
+            await query.message.reply_text(
+                "⚠️ Under Development 🚧",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Back to Shorteners ⬅️", callback_data="shortener")]
+                ])
+            )
+            logger.info(f"✅ Under development shown for {action} by {user_id}")
+        else:
+            await query.message.reply_text("⚠️ Invalid shortener selection!")
+            await log_error(f"Invalid shortener action by {user_id}: {action}")
+    except Exception as e:
+        await query.message.reply_text("⚠️ Failed to process shortener selection!")
+        await log_error(f"Shortener selection error for {user_id}: {str(e)}")
+
+async def handle_shortener_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process shortener API token input."""
+    if not context.user_data.get("setting_shortener"):
+        return
+
+    user_id = update.effective_user.id
+    api_key = update.message.text
+    shortener_type = context.user_data["setting_shortener"]
+
+    try:
+        if not api_key:
+            await update.message.reply_text("⚠️ API token cannot be empty!")
+            await log_error(f"Empty API token for {shortener_type} by {user_id}")
+            return
+
+        await set_setting("shortener", {"type": shortener_type, "api_key": api_key})
+        await update.message.reply_text(
+            f"✅ Shortener set to {shortener_type.capitalize()}!",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
+            ])
+        )
+        context.user_data["setting_shortener"] = None
+        logger.info(f"✅ Shortener {shortener_type} set by {user_id}")
+    except Exception as e:
+        await update.message.reply_text("⚠️ Failed to set shortener!")
+        await log_error(f"Shortener input error for {user_id}: {str(e)}")
