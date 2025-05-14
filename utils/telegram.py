@@ -1,5 +1,5 @@
 from telegram import Bot
-from utils.logger import log_error
+from utils.logging_utils import log_error
 
 async def send_message(bot: Bot, chat_id: str, text: str, reply_markup=None):
     """Send message with link error handling."""
