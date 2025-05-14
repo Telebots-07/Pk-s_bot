@@ -1,49 +1,34 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from utils.db_channel import get_setting
 from utils.logger import log_error
-from utils.firestore import get_group_link
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /search command, private chats only."""
+    """Redirect /search to group for non-admins."""
+    user_id = update.effective_user.id
+    admin_ids = context.bot_data.get("admin_ids", [])
+
     try:
-        user_id = update.effective_user.id
-        if user_id not in context.bot_data.get("ADMIN_IDS", []):
-            await update.message.reply_text("🚫 Admins only.")
-            return
-
-        chat_type = update.message.chat.type
-        query = " ".join(context.args).strip()
-
-        if not query:
-            await update.message.reply_text("🔍 Usage: /search <query>")
-            return
-
-        # Redirect to group for requests
-        group_link = await get_group_link(context) or os.getenv("REQUEST_GROUP_LINK", "https://t.me/+your_group_id")
-        await update.message.reply_text(
-            f"please request in this group this will also added dynamically in admins bot that start text itself ok: {group_link}",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Join Group", url=group_link)]
-            ])
-        )
-        log_error(f"Private /search attempt redirected: {query}, user_id: {user_id}")
+        if str(user_id) in admin_ids:
+            await update.message.reply_text(
+                "🔍 Search files in storage channels.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Search Files 🔍", callback_data="search_files")]
+                ])
+            )
+            logger.info(f"✅ Search menu shown for admin {user_id}")
+        else:
+            group_link = await get_setting("group_link", "https://t.me/+default_group")
+            if not group_link.startswith("https://t.me/"):
+                group_link = "https://t.me/+default_group"
+                await log_error(f"Invalid group link for {user_id}, using default")
+            await update.message.reply_text(
+                "🔍 Please use the group to search or request files!",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Join Group 🌐", url=group_link)]
+                ])
+            )
+            logger.info(f"✅ Search redirect for non-admin {user_id}")
     except Exception as e:
-        await update.message.reply_text("⚠️ Error processing /search. Try again.")
-        log_error(f"Search error: {str(e)}, user_id: {user_id}")
-
-async def handle_search_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle search suggestion buttons."""
-    try:
-        query = update.callback_query
-        await query.answer()
-
-        callback_data = query.data
-        action, value = callback_data.split("_", 1)
-
-        if action == "suggest":
-            context.user_data["request_query"] = value
-            from handlers.request import handle_request
-            await handle_request(update, context)
-    except Exception as e:
-        await query.message.reply_text("⚠️ Error processing callback. Try again.")
-        log_error(f"Search callback error: {str(e)}")
+        await update.message.reply_text("⚠️ Failed to process search command!")
+        await log_error(f"Search error for {user_id}: {str(e)}")
