@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import store_file_metadata, get_setting
-from utils.logger import log_error
+from utils.logging_utils import log_error
 from features.link_shortener import shorten_link
 from datetime import datetime
 import uuid
