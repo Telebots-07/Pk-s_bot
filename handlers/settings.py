@@ -2,6 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.db_channel import set_setting, get_setting
 from utils.logger import log_error
+from handlers.start import shortener_menu, handle_shortener_selection, handle_shortener_input
 
 async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle settings configuration."""
@@ -25,6 +26,10 @@ async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             context.user_data["setting_action"] = "add_channel"
             logger.info(f"✅ Add channel initiated by {user_id}")
+        elif action == "shortener":
+            await shortener_menu(update, context)
+        elif action in ["set_shortener_gplinks", "set_shortener_modijiurl", "set_shortener_other"]:
+            await handle_shortener_selection(update, context)
         else:
             await query.message.reply_text("⚠️ Unsupported setting action!")
             await log_error(f"Unsupported setting action by {user_id}: {action}")
