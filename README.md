@@ -6,6 +6,7 @@ File Cloning: Clone files (photo, video, document, audio; max 2GB) to storage ch
 Custom Caption & Buttons: Set captions (e.g., 🎥 {filename}) and buttons (e.g., [Download ⬇️]) with validated links.
 Clone Bot: Host new bots via [Clone Bot 🤖]; no user Render deployment.
 Shortener Skip: Skip shortener for 1 hour post-verification.
+Link Shorteners: Supports GPLinks, with submenu for GPLinks, ModijiURL, Other (ModijiURL/Other under development).
 Dynamic Settings: Configure via buttons, stored in DB channel, with success/failure feedback.
 Group Requests: Text as requests, hidden link previews, startid buttons.
 User-Friendly: Nested buttons, emojis (e.g., “✅”, “📂”).
@@ -23,13 +24,18 @@ TELEGRAM_TOKEN: From @BotFather.
 ADMIN_IDS: Comma-separated admin IDs (e.g., 123456789,987654321).
 
 
+Configure Shorteners:
+Update config/shorteners.json with GPLinks API token.
+Set via [Settings ⚙️] -> [Shortener 🔗] -> [GPLinks 🔗].
+
+
 Deploy:
 Create Render Web Service, point to repo, use Dockerfile.
 Set env vars in Render dashboard.
 
 
 Configure:
-Run /start, use [Settings ⚙️] to set DB channel, log channel, etc.
+Run /start, use [Settings ⚙️] to set DB channel, log channel, shortener, etc.
 Use [Clone Bot 🤖] to create hosted bots.
 
 
