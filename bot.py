@@ -29,11 +29,16 @@ bot_instances = []
 def start_cloned_bot(token, admin_ids):
     """🤖 Start a cloned bot instance dynamically with visibility restrictions."""
     try:
-        # Fetch cloned bots to get visibility
+        # Fetch cloned bots to get visibility and standalone status
         cloned_bots = get_cloned_bots()
         bot_info = next((bot for bot in cloned_bots if bot["token"] == token), None)
         if not bot_info:
             raise ValueError("Bot not found in cloned_bots")
+
+        # Skip if the bot is marked as standalone
+        if bot_info.get("standalone", False):
+            logger.info(f"ℹ️ Skipped starting cloned bot with token ending {token[-4:]} - marked as standalone! 🤖")
+            return None
 
         visibility = bot_info.get("visibility", "public")
         owner_id = bot_info.get("owner_id", None)
@@ -119,7 +124,7 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_settings_input))
     dispatcher.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
     dispatcher.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
-    dispatcher.add_handler(CallbackQueryHandler(handle_visibility_selection, pattern="^(visibility_private|visibility_public|cancel_clone)$"))  # Handle visibility selection
+    dispatcher.add_handler(CallbackQueryHandler(handle_visibility_selection, pattern="^(visibility_private|visibility_public|cancel_clone)$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
     dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
