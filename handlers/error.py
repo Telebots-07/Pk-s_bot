@@ -1,4 +1,3 @@
-from telegram import Update
 from telegram.ext import CallbackContext
 from utils.logging_utils import log_error
 import logging
@@ -6,12 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 def error_handler(update: Update, context: CallbackContext):
-    """🚨 Handle errors and log them."""
-    try:
-        error = context.error
-        user_id = update.effective_user.id if update.effective_user else "Unknown"
-        log_error(f"🚨 Error for user {user_id}: {str(error)}")
-        if update:
-            update.message.reply_text("⚠️ An error occurred! Try again later! 😅")
-    except Exception as e:
-        log_error(f"🚨 Error handler failed: {str(e)}")
+    """🚨 Log errors and notify the user."""
+    user_id = str(update.effective_user.id) if update and update.effective_user else "unknown"
+    error_msg = f"🚨 Update caused error for user {user_id}: {str(context.error)}"
+    logger.error(error_msg)
+    log_error(error_msg)
+    if update and update.message:
+        update.message.reply_text("⚠️ Something went wrong! Try again! 😅")
+    else:
+        logger.warning("⚠️ Error occurred, but no update to reply to.")
