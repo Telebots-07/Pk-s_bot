@@ -1,110 +1,96 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
+from telegram.ext import CallbackContext
 from utils.db_channel import set_setting, get_setting
 from utils.logging_utils import log_error
-from handlers.start import shortener_menu, handle_shortener_selection, handle_shortener_input
+from handlers.start import shortener_menu
+import logging
 
-async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle settings configuration."""
-    query = update.callback_query
-    await query.answer()
+logger = logging.getLogger(__name__)
 
+def handle_settings(update: Update, context: CallbackContext):
+    """⚙️ Handle bot settings based on callback patterns."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
-        await query.message.reply_text("⚠️ Admins only!")
-        await log_error(f"Unauthorized settings access by {user_id}")
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized settings action by {user_id}")
         return
 
-    action = query.data
+    callback_data = update.callback_query.data
     try:
-        if action == "add_channel":
-            await query.message.reply_text(
-                "📨 Forward a message from the channel where I’m an admin.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Cancel ❌", callback_data="cancel_setting")]
-                ])
+        if callback_data == "add_channel":
+            context.user_data["awaiting_channel"] = "add"
+            update.callback_query.message.reply_text(
+                "📺 Send the channel ID or username to add! (e.g., @ChannelName or -100123456789)"
             )
-            context.user_data["setting_action"] = "add_channel"
-            logger.info(f"✅ Add channel initiated by {user_id}")
-        elif action == "set_db_channel":
-            await query.message.reply_text(
-                "📨 Forward a message from the channel where I’m an admin to set as DB channel.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Cancel ❌", callback_data="cancel_setting")]
-                ])
+            logger.info(f"✅ Admin {user_id} started adding channel! 🌟")
+        elif callback_data == "remove_channel":
+            context.user_data["awaiting_channel"] = "remove"
+            update.callback_query.message.reply_text(
+                "🗑️ Send the channel ID or username to remove! (e.g., @ChannelName or -100123456789)"
             )
-            context.user_data["setting_action"] = "set_db_channel"
-            logger.info(f"✅ Set DB channel initiated by {user_id}")
-        elif action == "shortener":
-            await shortener_menu(update, context)
-        elif action in ["set_shortener_gplinks", "set_shortener_modijiurl", "set_shortener_other"]:
-            await handle_shortener_selection(update, context)
+            logger.info(f"✅ Admin {user_id} started removing channel! 🌟")
+        elif callback_data == "set_group_link":
+            context.user_data["awaiting_group_link"] = True
+            update.callback_query.message.reply_text(
+                "🔗 Send the group link! (e.g., https://t.me/+GroupLink)"
+            )
+            logger.info(f"✅ Admin {user_id} started setting group link! 🌟")
+        elif callback_data == "shortener":
+            shortener_menu(update, context)  # Delegate to start.py
+        elif callback_data in ["set_force_sub", "set_db_channel", "set_log_channel", "welcome_message", "auto_delete", "banner", "set_webhook", "anti_ban", "enable_redis"]:
+            update.callback_query.message.reply_text(
+                f"⚙️ {callback_data.replace('_', ' ').title()} is not fully implemented yet! Coming soon! 🚧"
+            )
+            logger.info(f"✅ Admin {user_id} tried {callback_data} (unimplemented)! 🌟")
         else:
-            await query.message.reply_text("⚠️ Unsupported setting action!")
-            await log_error(f"Unsupported setting action by {user_id}: {action}")
+            update.callback_query.message.reply_text("⚠️ Unknown setting! Try again! 😅")
+            log_error(f"🚨 Unknown callback {callback_data} by {user_id}")
     except Exception as e:
-        await query.message.reply_text("⚠️ Failed to process setting!")
-        await log_error(f"Settings error for {user_id}: {str(e)}")
+        update.callback_query.message.reply_text("⚠️ Failed to process setting! Try again! 😅")
+        log_error(f"🚨 Settings error for {user_id}: {str(e)}")
 
-async def handle_forwarded_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Process forwarded message for channel or DB channel settings."""
+def handle_settings_input(update: Update, context: CallbackContext):
+    """📝 Handle input for settings (channels, group link, etc.)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
-        await update.message.reply_text("⚠️ Admins only!")
-        await log_error(f"Unauthorized forwarded message by {user_id}")
-        return
-
-    setting_action = context.user_data.get("setting_action")
-    if setting_action not in ["add_channel", "set_db_channel"]:
+        update.message.reply_text("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized settings input by {user_id}")
         return
 
     try:
-        if not update.message.forward_from_chat or update.message.forward_from_chat.type != "channel":
-            await update.message.reply_text("⚠️ Please forward a message from a channel!")
-            await log_error(f"Invalid forwarded message by {user_id}")
-            return
-
-        channel_id = str(update.message.forward_from_chat.id)
-        # Validate bot admin status
-        bot_member = await context.bot.get_chat_member(channel_id, context.bot.id)
-        if bot_member.status not in ["administrator", "creator"]:
-            await update.message.reply_text("⚠️ I’m not an admin in this channel!")
-            await log_error(f"Bot not admin in {channel_id} by {user_id}")
-            return
-
-        if setting_action == "add_channel":
-            channels = await get_setting("storage_channels", [])
-            if channel_id not in channels:
-                channels.append(channel_id)
-                await set_setting("storage_channels", channels)
-                await update.message.reply_text(
-                    "✅ Channel added!",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
-                    ])
-                )
-                logger.info(f"✅ Channel {channel_id} added by {user_id}")
-            else:
-                await update.message.reply_text(
-                    "⚠️ Channel already added!",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
-                    ])
-                )
-                logger.info(f"⚠️ Channel {channel_id} already exists by {user_id}")
-        elif setting_action == "set_db_channel":
-            settings = await get_setting("settings", {})
-            settings["db_channel_id"] = channel_id
-            await set_setting("settings", settings)
-            await update.message.reply_text(
-                "✅ DB Channel set!",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("Back to Settings ⬅️", callback_data="settings")]
-                ])
-            )
-            logger.info(f"✅ DB Channel {channel_id} set by {user_id}")
-
-        context.user_data["setting_action"] = None
+        if context.user_data.get("awaiting_channel"):
+            action = context.user_data["awaiting_channel"]
+            channel = update.message.text.strip()
+            channels = get_setting("channels", [])
+            if action == "add":
+                if channel not in channels:
+                    channels.append(channel)
+                    set_setting("channels", channels)
+                    update.message.reply_text(f"📺 Channel {channel} added! 🎉")
+                    logger.info(f"✅ Admin {user_id} added channel {channel}! 🌟")
+                else:
+                    update.message.reply_text(f"⚠️ Channel {channel} already added! 😅")
+            elif action == "remove":
+                if channel in channels:
+                    channels.remove(channel)
+                    set_setting("channels", channels)
+                    update.message.reply_text(f"🗑️ Channel {channel} removed! 🎉")
+                    logger.info(f"✅ Admin {user_id} removed channel {channel}! 🌟")
+                else:
+                    update.message.reply_text(f"⚠️ Channel {channel} not found! 😅")
+            context.user_data["awaiting_channel"] = None
+        elif context.user_data.get("awaiting_group_link"):
+            group_link = update.message.text.strip()
+            if not group_link.startswith("https://t.me/"):
+                update.message.reply_text("⚠️ Invalid group link! Must start with https://t.me/ 😅")
+                log_error(f"🚨 Invalid group link input by {user_id}")
+                return
+            set_setting("group_link", group_link)
+            update.message.reply_text("🔗 Group link set! 🎉")
+            logger.info(f"✅ Admin {user_id} set group link! 🌟")
+            context.user_data["awaiting_group_link"] = None
+        else:
+            update.message.reply_text("⚠️ No setting input expected! Use the menu! 😅")
     except Exception as e:
-        await update.message.reply_text("⚠️ Failed to process forwarded message!")
-        await log_error(f"Forwarded message error for {user_id}: {str(e)}")
+        update.message.reply_text("⚠️ Failed to process input! Try again! 😅")
+        log_error(f"🚨 Settings input error for {user_id}: {str(e)}")
