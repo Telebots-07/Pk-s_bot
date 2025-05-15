@@ -12,6 +12,7 @@ from handlers.tutorial import tutorial
 from handlers.settings import handle_settings, handle_settings_input
 from handlers.broadcast import broadcast, handle_broadcast_input, cancel_broadcast
 from handlers.batch import batch, handle_batch_input, handle_batch_edit, cancel_batch
+from handlers.filestore import store_file, linkgen, batchgen, handle_linkgen_selection, handle_batchgen_selection, handle_filestore_link  # New imports
 from utils.logging_utils import log_error
 from utils.db_channel import get_cloned_bots
 from config.settings import load_settings
@@ -66,8 +67,13 @@ def start_cloned_bot(token, admin_ids):
         # Limited handlers for cloned bots (no admin features)
         clone_dispatcher.add_handler(CommandHandler("start", restrict_access(start)))
         clone_dispatcher.add_handler(CommandHandler("search", restrict_access(search)))
-        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, restrict_access(handle_file)))
+        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, restrict_access(store_file)))  # Updated to store_file
         clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, restrict_access(handle_request)))
+        clone_dispatcher.add_handler(CommandHandler("linkgen", restrict_access(linkgen)))  # New LinkGen command
+        clone_dispatcher.add_handler(CommandHandler("batchgen", restrict_access(batchgen)))  # New BatchGen command
+        clone_dispatcher.add_handler(CallbackQueryHandler(handle_linkgen_selection, pattern="^(linkgen_|cancel_linkgen)"))  # New LinkGen callback
+        clone_dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))  # New BatchGen callback
+        clone_dispatcher.add_handler(CommandHandler("start", handle_filestore_link, pass_args=True))  # Handle deep links
         clone_dispatcher.add_error_handler(error_handler)
         clone_updater.start_polling()
         logger.info(f"✅ Started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🤖")
@@ -143,6 +149,13 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
     dispatcher.add_handler(CallbackQueryHandler(handle_batch_edit, pattern="^edit_batch_"))
     dispatcher.add_handler(CallbackQueryHandler(cancel_batch, pattern="^cancel_batch$"))
+    # New File Store handlers for main bot
+    dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, store_file))  # Store files
+    dispatcher.add_handler(CommandHandler("linkgen", linkgen))  # LinkGen command
+    dispatcher.add_handler(CommandHandler("batchgen", batchgen))  # BatchGen command
+    dispatcher.add_handler(CallbackQueryHandler(handle_linkgen_selection, pattern="^(linkgen_|cancel_linkgen)"))  # LinkGen callback
+    dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))  # BatchGen callback
+    dispatcher.add_handler(CommandHandler("start", handle_filestore_link, pass_args=True))  # Handle deep links
     dispatcher.add_error_handler(error_handler)
 
     # 🗄️ Load cloned bots from DB channel
