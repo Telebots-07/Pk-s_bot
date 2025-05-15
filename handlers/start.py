@@ -10,19 +10,24 @@ def start(update: Update, context: CallbackContext):
     """🚀 Welcome users to the Cloner Bot with a cool menu for admins!"""
     user_id = update.effective_user.id
     admin_ids = context.bot_data.get("admin_ids", [])
+    is_main_bot = context.bot_data.get("is_main_bot", False)
 
     try:
         if str(user_id) in admin_ids:
+            buttons = [
+                [InlineKeyboardButton("🔍 Search Files", callback_data="search_files")],
+                [InlineKeyboardButton("🤖 Clone Bots", callback_data="view_clone_bots")],
+                [InlineKeyboardButton("📢 Broadcast", callback_data="broadcast")],
+                [InlineKeyboardButton("📝 Tutorial", callback_data="tutorial")]
+            ]
+            # Add admin features only for main bot
+            if is_main_bot:
+                buttons.insert(1, [InlineKeyboardButton("⚙️ Settings", callback_data="settings")])
+                buttons.insert(2, [InlineKeyboardButton("📊 Bot Stats", callback_data="bot_stats")])
             update.message.reply_text(
                 "👋 Yo, admin! Welcome to @bot_paiyan_official! 🌟\n"
                 "Manage your bot empire from here! 💪",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🔍 Search Files", callback_data="search_files")],
-                    [InlineKeyboardButton("⚙️ Settings", callback_data="settings")],
-                    [InlineKeyboardButton("🤖 Clone Bots", callback_data="view_clone_bots")],
-                    [InlineKeyboardButton("📢 Broadcast", callback_data="broadcast")],
-                    [InlineKeyboardButton("📝 Tutorial", callback_data="tutorial")]
-                ])
+                reply_markup=InlineKeyboardMarkup(buttons)
             )
             logger.info(f"✅ Admin {user_id} started bot with menu! 🎉")
         else:
@@ -36,11 +41,15 @@ def start(update: Update, context: CallbackContext):
         log_error(f"🚨 Start error for user {user_id}: {str(e)}")
 
 def settings_menu(update: Update, context: CallbackContext):
-    """⚙️ Show admin settings menu."""
+    """⚙️ Show admin settings menu (main bot only)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized settings access by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized settings access by {user_id} on clone")
         return
 
     try:
@@ -62,11 +71,15 @@ def settings_menu(update: Update, context: CallbackContext):
         log_error(f"🚨 Settings menu error for {user_id}: {str(e)}")
 
 def batch_menu(update: Update, context: CallbackContext):
-    """📦 Show batch operations menu."""
+    """📦 Show batch operations menu (main bot only)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized batch menu access by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized batch menu access by {user_id} on clone")
         return
 
     try:
@@ -83,12 +96,43 @@ def batch_menu(update: Update, context: CallbackContext):
         update.callback_query.message.reply_text("⚠️ Failed to load batch menu! Try again! 😅")
         log_error(f"🚨 Batch menu error for {user_id}: {str(e)}")
 
+def bot_stats(update: Update, context: CallbackContext):
+    """📊 Show bot stats (main bot only)."""
+    user_id = update.effective_user.id
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized bot stats access by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized bot stats access by {user_id} on clone")
+        return
+
+    try:
+        cloned_bots = get_setting("cloned_bots", [])
+        batches = get_setting("batches", [])
+        stats_message = (
+            "📊 Bot Stats for @bot_paiyan_official! 🌟\n"
+            f"🤖 Cloned Bots: {len(cloned_bots)}\n"
+            f"📦 Batches Created: {len(batches)}\n"
+            "Keep ruling Telegram! 💪"
+        )
+        update.callback_query.message.reply_text(stats_message)
+        logger.info(f"✅ Admin {user_id} viewed bot stats! 🌟")
+    except Exception as e:
+        update.callback_query.message.reply_text("⚠️ Failed to load stats! Try again! 😅")
+        log_error(f"🚨 Bot stats error for {user_id}: {str(e)}")
+
 def shortener_menu(update: Update, context: CallbackContext):
-    """🔗 Show URL shortener options for admins."""
+    """🔗 Show URL shortener options for admins (main bot only)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized shortener access by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized shortener access by {user_id} on clone")
         return
 
     try:
@@ -106,11 +150,15 @@ def shortener_menu(update: Update, context: CallbackContext):
         log_error(f"🚨 Shortener menu error for {user_id}: {str(e)}")
 
 def handle_shortener_selection(update: Update, context: CallbackContext):
-    """🔧 Process shortener selection."""
+    """🔧 Process shortener selection (main bot only)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized shortener selection by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized shortener selection by {user_id} on clone")
         return
 
     try:
@@ -131,14 +179,17 @@ def handle_shortener_selection(update: Update, context: CallbackContext):
         log_error(f"🚨 Shortener selection error for {user_id}: {str(e)}")
 
 def handle_shortener_input(update: Update, context: CallbackContext):
-    """📝 Save shortener API key or URL."""
+    """📝 Save shortener API key or URL (main bot only)."""
     user_id = update.effective_user.id
     if not context.user_data.get("awaiting_shortener_input"):
         return
-
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.message.reply_text("🚫 Admins only!")
         log_error(f"🚨 Unauthorized shortener input by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.message.reply_text("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized shortener input by {user_id} on clone")
         return
 
     try:
