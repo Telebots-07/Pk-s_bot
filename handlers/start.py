@@ -52,13 +52,36 @@ def settings_menu(update: Update, context: CallbackContext):
                 [InlineKeyboardButton("📺 Add Channel", callback_data="add_channel")],
                 [InlineKeyboardButton("🗑️ Remove Channel", callback_data="remove_channel")],
                 [InlineKeyboardButton("🔗 Set Group Link", callback_data="set_group_link")],
-                [InlineKeyboardButton("🔗 URL Shortener", callback_data="shortener")]
+                [InlineKeyboardButton("🔗 URL Shortener", callback_data="shortener")],
+                [InlineKeyboardButton("📦 Batch Operations", callback_data="batch_menu")]
             ])
         )
         logger.info(f"✅ Admin {user_id} opened settings menu! 🌟")
     except Exception as e:
         update.callback_query.message.reply_text("⚠️ Failed to load settings! Try again! 😅")
         log_error(f"🚨 Settings menu error for {user_id}: {str(e)}")
+
+def batch_menu(update: Update, context: CallbackContext):
+    """📦 Show batch operations menu."""
+    user_id = update.effective_user.id
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized batch menu access by {user_id}")
+        return
+
+    try:
+        update.callback_query.message.reply_text(
+            "📦 Batch Operations! Manage your file batches here! 🛠️",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📋 Generate Batch", callback_data="generate_batch")],
+                [InlineKeyboardButton("✏️ Edit Batch", callback_data="edit_batch")],
+                [InlineKeyboardButton("Back to Settings ⚙️", callback_data="settings")]
+            ])
+        )
+        logger.info(f"✅ Admin {user_id} opened batch menu! 🌟")
+    except Exception as e:
+        update.callback_query.message.reply_text("⚠️ Failed to load batch menu! Try again! 😅")
+        log_error(f"🚨 Batch menu error for {user_id}: {str(e)}")
 
 def shortener_menu(update: Update, context: CallbackContext):
     """🔗 Show URL shortener options for admins."""
