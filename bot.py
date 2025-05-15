@@ -16,7 +16,7 @@ from utils.logging_utils import log_error
 from utils.db_channel import get_cloned_bots
 from config.settings import load_settings
 
-# Logging setup for Render
+# 🌟 Logging setup for Render
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
@@ -24,13 +24,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
-    """Initialize and run the bot with support for cloned bots and custom captions/buttons."""
-    # Load static env vars
+    """🚀 Initialize and run the bot with cloned bots and custom captions/buttons."""
+    # 🔑 Load static env vars
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
     ADMIN_IDS = os.getenv("ADMIN_IDS")
 
     if not TELEGRAM_TOKEN or not ADMIN_IDS:
-        error_msg = "Missing TELEGRAM_TOKEN or ADMIN_IDS"
+        error_msg = "🚨 Missing TELEGRAM_TOKEN or ADMIN_IDS"
         logger.error(error_msg)
         log_error(error_msg)
         raise ValueError(error_msg)
@@ -38,26 +38,26 @@ def main():
     try:
         admin_ids = [int(id.strip()) for id in ADMIN_IDS.split(",")]
     except ValueError:
-        error_msg = "Invalid ADMIN_IDS format"
+        error_msg = "🚨 Invalid ADMIN_IDS format"
         logger.error(error_msg)
         log_error(error_msg)
         raise ValueError(error_msg)
 
     context_data = {"admin_ids": admin_ids}
 
-    # Initialize main bot
+    # 🤖 Initialize main bot
     try:
         updater = Updater(TELEGRAM_TOKEN, use_context=True)
         dispatcher = updater.dispatcher
         dispatcher.bot_data.update(context_data)
-        logger.info("Main bot initialized")
+        logger.info("✅ Main bot initialized! 🎉")
     except Exception as e:
-        error_msg = f"Failed to initialize main bot: {str(e)}"
+        error_msg = f"🚨 Failed to initialize main bot: {str(e)}"
         logger.error(error_msg)
         log_error(error_msg)
         raise
 
-    # Add handlers for main bot
+    # 📡 Add handlers for main bot
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("search", search))
     dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
@@ -76,12 +76,12 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
     dispatcher.add_error_handler(error_handler)
 
-    # Load cloned bots from DB channel
+    # 🗄️ Load cloned bots from DB channel
     try:
         cloned_bots = get_cloned_bots()
-        logger.info(f"Loaded {len(cloned_bots)} cloned bots")
+        logger.info(f"✅ Loaded {len(cloned_bots)} cloned bots! 🌟")
     except Exception as e:
-        error_msg = f"Failed to load cloned bots: {str(e)}"
+        error_msg = f"🚨 Failed to load cloned bots: {str(e)}"
         logger.error(error_msg)
         log_error(error_msg)
         cloned_bots = []
@@ -108,33 +108,33 @@ def main():
             clone_dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
             clone_dispatcher.add_error_handler(error_handler)
             bot_instances.append(clone_updater)
-            logger.info(f"Started cloned bot with token ending {token[-4:]}")
+            logger.info(f"✅ Started cloned bot with token ending {token[-4:]}! 🤖")
         except Exception as e:
-            error_msg = f"Failed to start cloned bot: {str(e)}"
+            error_msg = f"🚨 Failed to start cloned bot: {str(e)}"
             logger.error(error_msg)
             log_error(error_msg)
 
-    # Start main bot
+    # 🌍 Start main bot
     try:
         updater.start_polling()
-        logger.info("Main bot started")
+        logger.info("✅ Main bot started! 🚀")
     except Exception as e:
-        error_msg = f"Failed to start main bot: {str(e)}"
+        error_msg = f"🚨 Failed to start main bot: {str(e)}"
         logger.error(error_msg)
         log_error(error_msg)
         raise
 
-    # Start cloned bots
+    # 🔄 Start cloned bots
     for clone_updater in bot_instances:
         try:
             clone_updater.start_polling()
-            logger.info("Cloned bot instance started")
+            logger.info("✅ Cloned bot instance started! 🌟")
         except Exception as e:
-            error_msg = f"Failed to start cloned bot instance: {str(e)}"
+            error_msg = f"🚨 Failed to start cloned bot instance: {str(e)}"
             logger.error(error_msg)
             log_error(error_msg)
 
-    # Keep the main thread running
+    # 💤 Keep the main thread running
     updater.idle()
 
 if __name__ == "__main__":
