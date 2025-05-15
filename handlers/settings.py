@@ -8,11 +8,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 def handle_settings(update: Update, context: CallbackContext):
-    """⚙️ Handle bot settings based on callback patterns."""
+    """⚙️ Handle bot settings based on callback patterns (main bot only)."""
     user_id = update.effective_user.id
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized settings action by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized settings action by {user_id} on clone")
         return
 
     callback_data = update.callback_query.data
@@ -36,7 +40,7 @@ def handle_settings(update: Update, context: CallbackContext):
             )
             logger.info(f"✅ Admin {user_id} started setting group link! 🌟")
         elif callback_data == "shortener":
-            shortener_menu(update, context)  # Delegate to start.py
+            shortener_menu(update, context)
         elif callback_data in ["set_force_sub", "set_db_channel", "set_log_channel", "welcome_message", "auto_delete", "banner", "set_webhook", "anti_ban", "enable_redis"]:
             update.callback_query.message.reply_text(
                 f"⚙️ {callback_data.replace('_', ' ').title()} is not fully implemented yet! Coming soon! 🚧"
@@ -55,6 +59,10 @@ def handle_settings_input(update: Update, context: CallbackContext):
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.message.reply_text("🚫 Admins only!")
         log_error(f"🚨 Unauthorized settings input by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.message.reply_text("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized settings input by {user_id} on clone")
         return
 
     try:
