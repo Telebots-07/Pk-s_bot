@@ -1,7 +1,7 @@
 import os
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
-from handlers.start import start, settings_menu
+from handlers.start import start, settings_menu, batch_menu
 from handlers.file_handler import handle_file
 from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input
 from handlers.custom_caption import set_custom_caption, set_custom_buttons, handle_caption_input, handle_buttons_input
@@ -73,6 +73,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
     dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
     dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
+    dispatcher.add_handler(CallbackQueryHandler(batch_menu, pattern="^batch_menu$"))
     dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
     dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
     dispatcher.add_handler(CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$"))
@@ -100,7 +101,7 @@ def main():
             clone_dispatcher.bot_data.update(context_data)
             clone_dispatcher.add_handler(CommandHandler("start", start))
             clone_dispatcher.add_handler(CommandHandler("search", search))
-            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Files.video | Filters.audio, handle_file))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
@@ -110,6 +111,7 @@ def main():
             clone_dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(batch_menu, pattern="^batch_menu$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$"))
