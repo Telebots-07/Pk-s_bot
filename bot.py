@@ -101,7 +101,7 @@ def main():
             clone_dispatcher.bot_data.update(context_data)
             clone_dispatcher.add_handler(CommandHandler("start", start))
             clone_dispatcher.add_handler(CommandHandler("search", search))
-            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Files.video | Filters.audio, handle_file))
+            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
