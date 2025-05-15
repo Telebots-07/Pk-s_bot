@@ -1,8 +1,10 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import CallbackContext
+from telegram.error import TelegramError, Unauthorized, NetworkError
 from utils.db_channel import get_setting, set_setting
 from utils.logging_utils import log_error
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ def create_clone_bot(update: Update, context: CallbackContext):
         log_error(f"🚨 Clone bot error for {user_id}: {str(e)}")
 
 def handle_visibility_selection(update: Update, context: CallbackContext):
-    """🔒 Handle visibility selection and prompt for bot token."""
+    """🔒 Handle visibility selection and prompt for bot usage."""
     user_id = str(update.effective_user.id)
     if user_id not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
@@ -55,19 +57,57 @@ def handle_visibility_selection(update: Update, context: CallbackContext):
         # Store visibility selection
         visibility = "private" if callback_data == "visibility_private" else "public"
         context.user_data["new_bot_visibility"] = visibility
+
+        # Prompt for bot usage
+        update.callback_query.message.reply_text(
+            f"🤖 Visibility set to {visibility.upper()}! 🔒\n"
+            "Now choose the usage for the new cloned bot! 🛠️",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📦 File Store (GenLink/Batch)", callback_data="usage_filestore")],
+                [InlineKeyboardButton("🔍 Search Bot", callback_data="usage_searchbot")],
+                [InlineKeyboardButton("Cancel 🚫", callback_data="cancel_clone")]
+            ])
+        )
+        logger.info(f"✅ Admin {user_id} set visibility to {visibility} and awaiting usage selection! 🌟")
+    except Exception as e:
+        update.callback_query.message.reply_text("⚠️ Failed to set visibility! Try again! 😅")
+        log_error(f"🚨 Visibility selection error for {user_id}: {str(e)}")
+
+def handle_usage_selection(update: Update, context: CallbackContext):
+    """🛠️ Handle bot usage selection and prompt for bot token."""
+    user_id = str(update.effective_user.id)
+    if user_id not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized usage selection by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized usage selection by {user_id} on clone")
+        return
+
+    try:
+        callback_data = update.callback_query.data
+        if callback_data == "cancel_clone":
+            update.callback_query.message.reply_text("🚫 Cloning cancelled! 😅")
+            logger.info(f"✅ Admin {user_id} cancelled cloning! 🌟")
+            return
+
+        # Store usage selection
+        usage = "filestore" if callback_data == "usage_filestore" else "searchbot"
+        context.user_data["new_bot_usage"] = usage
         context.user_data["awaiting_clone_token"] = True
 
         update.callback_query.message.reply_text(
-            f"🤖 Visibility set to {visibility.upper()}! 🔑\n"
+            f"🤖 Usage set to {usage.upper()}! 🛠️\n"
             "Now send the Telegram Bot Token for the new cloned bot! 🔑",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Cancel 🚫", callback_data="cancel_clone")]
             ])
         )
-        logger.info(f"✅ Admin {user_id} set visibility to {visibility} and awaiting token! 🌟")
+        logger.info(f"✅ Admin {user_id} set usage to {usage} and awaiting token! 🌟")
     except Exception as e:
-        update.callback_query.message.reply_text("⚠️ Failed to set visibility! Try again! 😅")
-        log_error(f"🚨 Visibility selection error for {user_id}: {str(e)}")
+        update.callback_query.message.reply_text("⚠️ Failed to set usage! Try again! 😅")
+        log_error(f"🚨 Usage selection error for {user_id}: {str(e)}")
 
 def view_clone_bots(update: Update, context: CallbackContext):
     """🤖 View all cloned bots (main bot only)."""
@@ -87,7 +127,7 @@ def view_clone_bots(update: Update, context: CallbackContext):
             update.callback_query.message.reply_text("⚠️ No cloned bots found! Create one first! 😅")
             logger.info(f"✅ Admin {user_id} viewed clone bots - none found! 🌟")
             return
-        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]} | Visibility: {bot['visibility'].upper()} | Standalone: {bot.get('standalone', False)}" for bot in cloned_bots])
+        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]} | Visibility: {bot['visibility'].upper()} | Usage: {bot['usage'].upper()} | Standalone: {bot.get('standalone', False)}" for bot in cloned_bots])
         update.callback_query.message.reply_text(response)
         logger.info(f"✅ Admin {user_id} viewed {len(cloned_bots)} cloned bots! 🌟")
     except Exception as e:
@@ -113,6 +153,7 @@ def handle_clone_input(update: Update, context: CallbackContext):
     try:
         token = update.message.text.strip()
         visibility = context.user_data.get("new_bot_visibility", "public")  # Default to public if not set
+        usage = context.user_data.get("new_bot_usage", "searchbot")  # Default to searchbot if not set
 
         # Validate token format (basic check)
         if not token or ":" not in token or len(token.split(":")) != 2:
@@ -126,8 +167,20 @@ def handle_clone_input(update: Update, context: CallbackContext):
             bot_info = bot.get_me()  # This will raise an exception if the token is invalid
             bot_username = bot_info.username
             logger.info(f"✅ Token verification successful for bot @{bot_username} with token ending {token[-4:]}")
+        except Unauthorized:
+            update.message.reply_text("⚠️ Token is invalid or revoked! Get a new token from BotFather and try again! 😅")
+            logger.error(f"🚨 Token verification failed for user {user_id}: Unauthorized")
+            return
+        except NetworkError:
+            update.message.reply_text("⚠️ Network error while verifying token! Check your connection and try again! 😅")
+            logger.error(f"🚨 Token verification failed for user {user_id}: NetworkError")
+            return
+        except TelegramError as e:
+            update.message.reply_text(f"⚠️ Telegram error while verifying token: {str(e)}! Try again! 😅")
+            logger.error(f"🚨 Token verification failed for user {user_id}: {str(e)}")
+            return
         except Exception as e:
-            update.message.reply_text(f"⚠️ Token verification failed! Error: {str(e)}\nMake sure the token is correct and not revoked. Try again! 😅")
+            update.message.reply_text(f"⚠️ Unexpected error while verifying token: {str(e)}! Try again! 😅")
             logger.error(f"🚨 Token verification failed for user {user_id}: {str(e)}")
             return
 
@@ -140,14 +193,19 @@ def handle_clone_input(update: Update, context: CallbackContext):
             logger.info(f"⚠️ Admin {user_id} tried to add duplicate token ending {token[-4:]} for @{bot_username}")
             return
 
-        # Check if this token matches the FILESTORE_TOKEN (to mark as standalone)
+        # Check if this token matches FILESTORE_TOKEN and verify it
         filestore_token = os.getenv("FILESTORE_TOKEN")
         is_standalone = token == filestore_token
+        if is_standalone and usage != "filestore":
+            update.message.reply_text("⚠️ The token matches FILESTORE_TOKEN but usage is not set to File Store! Please set usage to File Store for this token! 😅")
+            logger.info(f"⚠️ Admin {user_id} tried to use FILESTORE_TOKEN with incorrect usage: {usage}")
+            return
 
-        # Store bot with visibility and standalone status
+        # Store bot with visibility, usage, and standalone status
         cloned_bots.append({
             "token": token,
             "visibility": visibility,
+            "usage": usage,
             "owner_id": user_id,
             "standalone": is_standalone
         })
@@ -159,17 +217,18 @@ def handle_clone_input(update: Update, context: CallbackContext):
             instance = start_cloned_bot(token, admin_ids)
             if instance:
                 bot_instances.append(instance)
-                update.message.reply_text(f"✅ Cloned bot @{bot_username} added and started! 🎉\nVisibility: {visibility.upper()} 🔒")
-                logger.info(f"✅ Admin {user_id} added and started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🌟")
+                update.message.reply_text(f"✅ Cloned bot @{bot_username} added and started! 🎉\nVisibility: {visibility.upper()} 🔒 | Usage: {usage.upper()} 🛠️")
+                logger.info(f"✅ Admin {user_id} added and started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility} and usage {usage}! 🌟")
             else:
                 update.message.reply_text(f"⚠️ Cloned bot @{bot_username} added but failed to start! Check the token or logs! 😅")
                 logger.info(f"⚠️ Admin {user_id} added cloned bot @{bot_username} but failed to start, token ending {token[-4:]}")
         else:
-            update.message.reply_text(f"✅ Cloned bot @{bot_username} added as standalone (running independently)! 🎉\nVisibility: {visibility.upper()} 🔒")
-            logger.info(f"✅ Admin {user_id} added standalone bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🌟")
+            update.message.reply_text(f"✅ Cloned bot @{bot_username} added as standalone (running independently)! 🎉\nVisibility: {visibility.upper()} 🔒 | Usage: {usage.upper()} 🛠️")
+            logger.info(f"✅ Admin {user_id} added standalone bot @{bot_username} with token ending {token[-4:]} and visibility {visibility} and usage {usage}! 🌟")
 
         context.user_data["awaiting_clone_token"] = None
         context.user_data["new_bot_visibility"] = None
+        context.user_data["new_bot_usage"] = None
     except Exception as e:
         update.message.reply_text("⚠️ Failed to add cloned bot! Check token or logs! 😅")
         log_error(f"🚨 Clone input error for {user_id}: {str(e)}")
