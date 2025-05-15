@@ -3,7 +3,7 @@ import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
 from handlers.start import start, settings_menu, batch_menu, bot_stats
 from handlers.file_handler import handle_file
-from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input
+from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input, handle_visibility_selection
 from handlers.custom_caption import set_custom_caption, set_custom_buttons, handle_caption_input, handle_buttons_input
 from handlers.error import error_handler
 from handlers.search import search
@@ -27,20 +27,41 @@ logger = logging.getLogger(__name__)
 bot_instances = []
 
 def start_cloned_bot(token, admin_ids):
-    """🤖 Start a cloned bot instance dynamically."""
+    """🤖 Start a cloned bot instance dynamically with visibility restrictions."""
     try:
+        # Fetch cloned bots to get visibility
+        cloned_bots = get_cloned_bots()
+        bot_info = next((bot for bot in cloned_bots if bot["token"] == token), None)
+        if not bot_info:
+            raise ValueError("Bot not found in cloned_bots")
+
+        visibility = bot_info.get("visibility", "public")
+        owner_id = bot_info.get("owner_id", None)
+
         clone_updater = Updater(token, use_context=True)
         clone_dispatcher = clone_updater.dispatcher
-        clone_context_data = {"admin_ids": admin_ids, "is_main_bot": False}
+        clone_context_data = {"admin_ids": admin_ids, "is_main_bot": False, "visibility": visibility, "owner_id": owner_id}
         clone_dispatcher.bot_data.update(clone_context_data)
+
+        # Access restriction for private bots
+        def restrict_access(handler_func):
+            def wrapper(update: Update, context: CallbackContext):
+                user_id = str(update.effective_user.id)
+                if context.bot_data.get("visibility") == "private" and user_id != context.bot_data.get("owner_id"):
+                    update.message.reply_text("🚫 This bot is private! Only the owner can use it! 🔒")
+                    logger.info(f"🚫 User {user_id} denied access to private bot with token ending {token[-4:]}")
+                    return
+                return handler_func(update, context)
+            return wrapper
+
         # Limited handlers for cloned bots (no admin features)
-        clone_dispatcher.add_handler(CommandHandler("start", start))
-        clone_dispatcher.add_handler(CommandHandler("search", search))
-        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
-        clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+        clone_dispatcher.add_handler(CommandHandler("start", restrict_access(start)))
+        clone_dispatcher.add_handler(CommandHandler("search", restrict_access(search)))
+        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, restrict_access(handle_file)))
+        clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, restrict_access(handle_request)))
         clone_dispatcher.add_error_handler(error_handler)
         clone_updater.start_polling()
-        logger.info(f"✅ Started cloned bot with token ending {token[-4:]}! 🤖")
+        logger.info(f"✅ Started cloned bot with token ending {token[-4:]} and visibility {visibility}! 🤖")
         return clone_updater
     except Exception as e:
         error_msg = f"🚨 Failed to start cloned bot: {str(e)}"
@@ -98,6 +119,7 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_settings_input))
     dispatcher.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
     dispatcher.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
+    dispatcher.add_handler(CallbackQueryHandler(handle_visibility_selection, pattern="^(visibility_private|visibility_public|cancel_clone)$"))  # Handle visibility selection
     dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
     dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
