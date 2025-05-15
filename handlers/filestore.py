@@ -2,6 +2,7 @@ import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext
+from telegram.error import TelegramError, Unauthorized, BadRequest
 from utils.db_channel import get_setting, set_setting
 from utils.logging_utils import log_error
 
@@ -41,11 +42,24 @@ def store_file(update: Update, context: CallbackContext):
             return
 
         # Forward the file to the private channel
-        forwarded_message = context.bot.forward_message(
-            chat_id=CHANNEL_ID,
-            from_chat_id=update.message.chat_id,
-            message_id=update.message.message_id
-        )
+        try:
+            forwarded_message = context.bot.forward_message(
+                chat_id=CHANNEL_ID,
+                from_chat_id=update.message.chat_id,
+                message_id=update.message.message_id
+            )
+        except Unauthorized:
+            update.message.reply_text("⚠️ Bot lacks permission to forward messages to the channel! Contact the admin! 😅")
+            logger.error(f"🚨 Unauthorized error: Bot cannot forward messages to channel {CHANNEL_ID} for user {user_id}")
+            return
+        except BadRequest as e:
+            update.message.reply_text("⚠️ Failed to forward file: Invalid channel ID or message! Check the channel setup! 😅")
+            logger.error(f"🚨 BadRequest error while forwarding to channel {CHANNEL_ID} for user {user_id}: {str(e)}")
+            return
+        except TelegramError as e:
+            update.message.reply_text(f"⚠️ Telegram error while forwarding file: {str(e)}! Try again! 😅")
+            logger.error(f"🚨 Telegram error while forwarding to channel {CHANNEL_ID} for user {user_id}: {str(e)}")
+            return
 
         # Save file metadata
         stored_files = get_setting("stored_files", [])
@@ -61,15 +75,15 @@ def store_file(update: Update, context: CallbackContext):
 
         update.message.reply_text(
             f"✅ File '{file_name}' stored successfully! 📦\n"
-            "Use /linkgen to create a shareable link for this file, or /batchgen for multiple files! 🔗"
+            "Use /genlink to create a shareable link for this file, or /batchgen for multiple files! 🔗"
         )
         logger.info(f"✅ User {user_id} stored file '{file_name}'! 🌟")
     except Exception as e:
         update.message.reply_text("⚠️ Failed to store file! Try again! 😅")
         log_error(f"🚨 File store error for user {user_id}: {str(e)}")
 
-def linkgen(update: Update, context: CallbackContext):
-    """🔗 Generate a shareable link for a single file (LinkGen)."""
+def genlink(update: Update, context: CallbackContext):
+    """🔗 Generate a shareable link for a single file (GenLink)."""
     user_id = str(update.effective_user.id)
     try:
         stored_files = get_setting("stored_files", [])
@@ -84,10 +98,10 @@ def linkgen(update: Update, context: CallbackContext):
             return
 
         buttons = [
-            [InlineKeyboardButton(f"{f['file_name']}", callback_data=f"linkgen_{i}")]
+            [InlineKeyboardButton(f"{f['file_name']}", callback_data=f"genlink_{i}")]
             for i, f in enumerate(user_files)
         ]
-        buttons.append([InlineKeyboardButton("Cancel 🚫", callback_data="cancel_linkgen")])
+        buttons.append([InlineKeyboardButton("Cancel 🚫", callback_data="cancel_genlink")])
 
         update.message.reply_text(
             "🔗 Choose a file to generate a shareable link! 📦",
@@ -96,14 +110,14 @@ def linkgen(update: Update, context: CallbackContext):
         logger.info(f"✅ User {user_id} requested to generate a link! 🌟")
     except Exception as e:
         update.message.reply_text("⚠️ Failed to generate link! Try again! 😅")
-        log_error(f"🚨 LinkGen error for user {user_id}: {str(e)}")
+        log_error(f"🚨 GenLink error for user {user_id}: {str(e)}")
 
-def handle_linkgen_selection(update: Update, context: CallbackContext):
-    """🔗 Handle file selection and generate the link (LinkGen)."""
+def handle_genlink_selection(update: Update, context: CallbackContext):
+    """🔗 Handle file selection and generate the link (GenLink)."""
     user_id = str(update.effective_user.id)
     try:
         callback_data = update.callback_query.data
-        if callback_data == "cancel_linkgen":
+        if callback_data == "cancel_genlink":
             update.callback_query.message.reply_text("🚫 Link generation cancelled! 😅")
             return
 
@@ -122,7 +136,7 @@ def handle_linkgen_selection(update: Update, context: CallbackContext):
         logger.info(f"✅ User {user_id} generated link for file '{selected_file['file_name']}'! 🌟")
     except Exception as e:
         update.callback_query.message.reply_text("⚠️ Failed to generate link! Try again! 😅")
-        log_error(f"🚨 LinkGen selection error for user {user_id}: {str(e)}")
+        log_error(f"🚨 GenLink selection error for user {user_id}: {str(e)}")
 
 def batchgen(update: Update, context: CallbackContext):
     """📦 Generate a shareable link for multiple files (BatchGen)."""
