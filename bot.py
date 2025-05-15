@@ -3,7 +3,7 @@ import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackQueryHandler, Filters
 from handlers.start import start, settings_menu, batch_menu, bot_stats
 from handlers.file_handler import handle_file
-from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input, handle_visibility_selection
+from handlers.clone_bot import create_clone_bot, view_clone_bots, handle_clone_input, handle_visibility_selection, handle_usage_selection
 from handlers.custom_caption import set_custom_caption, set_custom_buttons, handle_caption_input, handle_buttons_input
 from handlers.error import error_handler
 from handlers.search import search
@@ -12,10 +12,7 @@ from handlers.tutorial import tutorial
 from handlers.settings import handle_settings, handle_settings_input
 from handlers.broadcast import broadcast, handle_broadcast_input, cancel_broadcast
 from handlers.batch import batch, handle_batch_input, handle_batch_edit, cancel_batch
-from handlers.filestore import store_file, linkgen, batchgen, handle_linkgen_selection, handle_batchgen_selection, handle_filestore_link  # New imports
-from utils.logging_utils import log_error
-from utils.db_channel import get_cloned_bots
-from config.settings import load_settings
+from handlers.filestore import store_file, genlink, batchgen, handle_genlink_selection, handle_batchgen_selection, handle_filestore_link  # Updated import
 
 # 🌟 Logging setup for Render
 logging.basicConfig(
@@ -31,6 +28,7 @@ def start_cloned_bot(token, admin_ids):
     """🤖 Start a cloned bot instance dynamically with visibility restrictions."""
     try:
         # Fetch cloned bots to get visibility and standalone status
+        from utils.db_channel import get_cloned_bots
         cloned_bots = get_cloned_bots()
         bot_info = next((bot for bot in cloned_bots if bot["token"] == token), None)
         if not bot_info:
@@ -42,6 +40,7 @@ def start_cloned_bot(token, admin_ids):
             return None
 
         visibility = bot_info.get("visibility", "public")
+        usage = bot_info.get("usage", "searchbot")  # Default to searchbot if not set
         owner_id = bot_info.get("owner_id", None)
 
         clone_updater = Updater(token, use_context=True)
@@ -64,23 +63,28 @@ def start_cloned_bot(token, admin_ids):
                 return handler_func(update, context)
             return wrapper
 
-        # Limited handlers for cloned bots (no admin features)
+        # Handlers based on usage type
         clone_dispatcher.add_handler(CommandHandler("start", restrict_access(start)))
-        clone_dispatcher.add_handler(CommandHandler("search", restrict_access(search)))
-        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, restrict_access(store_file)))  # Updated to store_file
-        clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, restrict_access(handle_request)))
-        clone_dispatcher.add_handler(CommandHandler("linkgen", restrict_access(linkgen)))  # New LinkGen command
-        clone_dispatcher.add_handler(CommandHandler("batchgen", restrict_access(batchgen)))  # New BatchGen command
-        clone_dispatcher.add_handler(CallbackQueryHandler(handle_linkgen_selection, pattern="^(linkgen_|cancel_linkgen)"))  # New LinkGen callback
-        clone_dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))  # New BatchGen callback
-        clone_dispatcher.add_handler(CommandHandler("start", handle_filestore_link, pass_args=True))  # Handle deep links
+        if usage == "searchbot":
+            clone_dispatcher.add_handler(CommandHandler("search", restrict_access(search)))
+            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, restrict_access(handle_request)))
+            clone_dispatcher.add_handler(CommandHandler("start", handle_request, pass_args=True))
+        elif usage == "filestore":
+            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, restrict_access(store_file)))
+            clone_dispatcher.add_handler(CommandHandler("genlink", restrict_access(genlink)))  # Updated to genlink
+            clone_dispatcher.add_handler(CommandHandler("batchgen", restrict_access(batchgen)))
+            clone_dispatcher.add_handler(CallbackQueryHandler(handle_genlink_selection, pattern="^(genlink_|cancel_genlink)"))  # Updated pattern
+            clone_dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))
+            clone_dispatcher.add_handler(CommandHandler("start", handle_filestore_link, pass_args=True))
+
         clone_dispatcher.add_error_handler(error_handler)
         clone_updater.start_polling()
-        logger.info(f"✅ Started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🤖")
+        logger.info(f"✅ Started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility} and usage {usage}! 🤖")
         return clone_updater
     except Exception as e:
         error_msg = f"🚨 Failed to start cloned bot with token ending {token[-4:]}: {str(e)}"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         return None
 
@@ -95,6 +99,7 @@ def main():
     if not TELEGRAM_TOKEN or not ADMIN_IDS:
         error_msg = "🚨 Missing TELEGRAM_TOKEN or ADMIN_IDS"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         raise ValueError(error_msg)
 
@@ -104,6 +109,7 @@ def main():
     except ValueError:
         error_msg = "🚨 Invalid ADMIN_IDS format"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         raise ValueError(error_msg)
 
@@ -120,6 +126,7 @@ def main():
     except Exception as e:
         error_msg = f"🚨 Failed to initialize main bot: {str(e)}"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         raise
 
@@ -137,6 +144,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
     dispatcher.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
     dispatcher.add_handler(CallbackQueryHandler(handle_visibility_selection, pattern="^(visibility_private|visibility_public|cancel_clone)$"))
+    dispatcher.add_handler(CallbackQueryHandler(handle_usage_selection, pattern="^(usage_filestore|usage_searchbot|cancel_clone)$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
     dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
@@ -151,23 +159,25 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(cancel_batch, pattern="^cancel_batch$"))
     # New File Store handlers for main bot
     dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, store_file))  # Store files
-    dispatcher.add_handler(CommandHandler("linkgen", linkgen))  # LinkGen command
-    dispatcher.add_handler(CommandHandler("batchgen", batchgen))  # BatchGen command
-    dispatcher.add_handler(CallbackQueryHandler(handle_linkgen_selection, pattern="^(linkgen_|cancel_linkgen)"))  # LinkGen callback
-    dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))  # BatchGen callback
+    dispatcher.add_handler(CommandHandler("genlink", genlink))  # Updated to genlink
+    dispatcher.add_handler(CommandHandler("batchgen", batchgen))
+    dispatcher.add_handler(CallbackQueryHandler(handle_genlink_selection, pattern="^(genlink_|cancel_genlink)"))  # Updated pattern
+    dispatcher.add_handler(CallbackQueryHandler(handle_batchgen_selection, pattern="^(batch_select_|batch_done|cancel_batchgen)"))
     dispatcher.add_handler(CommandHandler("start", handle_filestore_link, pass_args=True))  # Handle deep links
     dispatcher.add_error_handler(error_handler)
 
     # 🗄️ Load cloned bots from DB channel
     try:
+        from utils.db_channel import get_cloned_bots
         cloned_bots = get_cloned_bots()
         logger.info(f"✅ Loaded {len(cloned_bots)} cloned bots! 🌟")
         # Log details of each bot for debugging
         for bot in cloned_bots:
-            logger.info(f"ℹ️ Cloned bot: token ending {bot['token'][-4:]} | Visibility: {bot['visibility']} | Standalone: {bot.get('standalone', False)}")
+            logger.info(f"ℹ️ Cloned bot: token ending {bot['token'][-4:]} | Visibility: {bot['visibility']} | Usage: {bot['usage']} | Standalone: {bot.get('standalone', False)}")
     except Exception as e:
         error_msg = f"🚨 Failed to load cloned bots: {str(e)}"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         cloned_bots = []
 
@@ -185,6 +195,7 @@ def main():
     except Exception as e:
         error_msg = f"🚨 Failed to start main bot: {str(e)}"
         logger.error(error_msg)
+        from utils.logging_utils import log_error
         log_error(error_msg)
         raise
 
