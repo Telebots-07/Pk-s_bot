@@ -48,6 +48,10 @@ def start_cloned_bot(token, admin_ids):
         clone_context_data = {"admin_ids": admin_ids, "is_main_bot": False, "visibility": visibility, "owner_id": owner_id}
         clone_dispatcher.bot_data.update(clone_context_data)
 
+        # Log the bot's username for debugging
+        bot_username = clone_updater.bot.get_me().username
+        logger.info(f"ℹ️ Initializing cloned bot @{bot_username} with token ending {token[-4:]}")
+
         # Access restriction for private bots
         def restrict_access(handler_func):
             def wrapper(update: Update, context: CallbackContext):
@@ -66,7 +70,7 @@ def start_cloned_bot(token, admin_ids):
         clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, restrict_access(handle_request)))
         clone_dispatcher.add_error_handler(error_handler)
         clone_updater.start_polling()
-        logger.info(f"✅ Started cloned bot with token ending {token[-4:]} and visibility {visibility}! 🤖")
+        logger.info(f"✅ Started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🤖")
         return clone_updater
     except Exception as e:
         error_msg = f"🚨 Failed to start cloned bot with token ending {token[-4:]}: {str(e)}"
@@ -104,7 +108,9 @@ def main():
         updater = Updater(TELEGRAM_TOKEN, use_context=True)
         dispatcher = updater.dispatcher
         dispatcher.bot_data.update(context_data)
-        logger.info("✅ Main bot initialized! 🎉")
+        # Log the bot's username for debugging
+        bot_username = updater.bot.get_me().username
+        logger.info(f"✅ Main bot initialized! 🎉 Bot username: @{bot_username}")
     except Exception as e:
         error_msg = f"🚨 Failed to initialize main bot: {str(e)}"
         logger.error(error_msg)
@@ -162,7 +168,7 @@ def main():
     # 🌍 Start main bot
     try:
         updater.start_polling()
-        logger.info("✅ Main bot started! 🚀")
+        logger.info(f"✅ Main bot started! 🚀 Bot username: @{bot_username}")
     except Exception as e:
         error_msg = f"🚨 Failed to start main bot: {str(e)}"
         logger.error(error_msg)
