@@ -272,15 +272,6 @@ def handle_start_link(update: Update, context: CallbackContext):
         update.message.reply_text("⚠️ Failed to access file/batch! Try again! 😅")
         log_error(f"🚨 Start link error for user {user_id}: {str(e)}")
 
-def error_handler(update: Update, context: CallbackContext):
-    """🚨 Log errors and notify the user."""
-    user_id = str(update.effective_user.id) if update else "unknown"
-    error_msg = f"🚨 Update caused error: {str(context.error)}"
-    logger.error(error_msg)
-    log_error(error_msg)
-    if update and update.message:
-        update.message.reply_text("⚠️ Something went wrong! Try again! 😅")
-
 def main():
     """🚀 Start the File Store Bot."""
     TELEGRAM_TOKEN = os.getenv("FILESTORE_TOKEN")
