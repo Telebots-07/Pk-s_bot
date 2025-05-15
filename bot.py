@@ -69,7 +69,7 @@ def start_cloned_bot(token, admin_ids):
         logger.info(f"✅ Started cloned bot with token ending {token[-4:]} and visibility {visibility}! 🤖")
         return clone_updater
     except Exception as e:
-        error_msg = f"🚨 Failed to start cloned bot: {str(e)}"
+        error_msg = f"🚨 Failed to start cloned bot with token ending {token[-4:]}: {str(e)}"
         logger.error(error_msg)
         log_error(error_msg)
         return None
@@ -143,6 +143,9 @@ def main():
     try:
         cloned_bots = get_cloned_bots()
         logger.info(f"✅ Loaded {len(cloned_bots)} cloned bots! 🌟")
+        # Log details of each bot for debugging
+        for bot in cloned_bots:
+            logger.info(f"ℹ️ Cloned bot: token ending {bot['token'][-4:]} | Visibility: {bot['visibility']} | Standalone: {bot.get('standalone', False)}")
     except Exception as e:
         error_msg = f"🚨 Failed to load cloned bots: {str(e)}"
         logger.error(error_msg)
