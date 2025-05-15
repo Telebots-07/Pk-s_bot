@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def create_clone_bot(update: Update, context: CallbackContext):
-    """🤖 Create a new cloned bot (main bot only)."""
+    """🤖 Prompt for bot type visibility before creating a new cloned bot (main bot only)."""
     user_id = str(update.effective_user.id)
     if user_id not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
@@ -19,17 +19,55 @@ def create_clone_bot(update: Update, context: CallbackContext):
         return
 
     try:
-        context.user_data["awaiting_clone_token"] = True
+        # Prompt for visibility type
         update.callback_query.message.reply_text(
-            "🤖 Send the Telegram Bot Token for the new cloned bot! 🔑",
+            "🤖 Choose the visibility for the new cloned bot! 🔒",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔒 Private (Only You)", callback_data="visibility_private")],
+                [InlineKeyboardButton("🌍 Public (Everyone)", callback_data="visibility_public")],
+                [InlineKeyboardButton("Cancel 🚫", callback_data="cancel_clone")]
+            ])
+        )
+        logger.info(f"✅ Admin {user_id} started cloning bot - selecting visibility! 🌟")
+    except Exception as e:
+        update.callback_query.message.reply_text("⚠️ Failed to start cloning! Try again! 😅")
+        log_error(f"🚨 Clone bot error for {user_id}: {str(e)}")
+
+def handle_visibility_selection(update: Update, context: CallbackContext):
+    """🔒 Handle visibility selection and prompt for bot token."""
+    user_id = str(update.effective_user.id)
+    if user_id not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized visibility selection by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized visibility selection by {user_id} on clone")
+        return
+
+    try:
+        callback_data = update.callback_query.data
+        if callback_data == "cancel_clone":
+            update.callback_query.message.reply_text("🚫 Cloning cancelled! 😅")
+            logger.info(f"✅ Admin {user_id} cancelled cloning! 🌟")
+            return
+
+        # Store visibility selection
+        visibility = "private" if callback_data == "visibility_private" else "public"
+        context.user_data["new_bot_visibility"] = visibility
+        context.user_data["awaiting_clone_token"] = True
+
+        update.callback_query.message.reply_text(
+            f"🤖 Visibility set to {visibility.upper()}! 🔑\n"
+            "Now send the Telegram Bot Token for the new cloned bot! 🔑",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("Cancel 🚫", callback_data="cancel_clone")]
             ])
         )
-        logger.info(f"✅ Admin {user_id} started cloning bot! 🌟")
+        logger.info(f"✅ Admin {user_id} set visibility to {visibility} and awaiting token! 🌟")
     except Exception as e:
-        update.callback_query.message.reply_text("⚠️ Failed to start cloning! Try again! 😅")
-        log_error(f"🚨 Clone bot error for {user_id}: {str(e)}")
+        update.callback_query.message.reply_text("⚠️ Failed to set visibility! Try again! 😅")
+        log_error(f"🚨 Visibility selection error for {user_id}: {str(e)}")
 
 def view_clone_bots(update: Update, context: CallbackContext):
     """🤖 View all cloned bots (main bot only)."""
@@ -49,7 +87,7 @@ def view_clone_bots(update: Update, context: CallbackContext):
             update.callback_query.message.reply_text("⚠️ No cloned bots found! Create one first! 😅")
             logger.info(f"✅ Admin {user_id} viewed clone bots - none found! 🌟")
             return
-        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]}" for bot in cloned_bots])
+        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]} | Visibility: {bot['visibility'].upper()}" for bot in cloned_bots])
         update.callback_query.message.reply_text(response)
         logger.info(f"✅ Admin {user_id} viewed {len(cloned_bots)} cloned bots! 🌟")
     except Exception as e:
@@ -74,13 +112,15 @@ def handle_clone_input(update: Update, context: CallbackContext):
 
     try:
         token = update.message.text.strip()
+        visibility = context.user_data.get("new_bot_visibility", "public")  # Default to public if not set
         cloned_bots = get_setting("cloned_bots", [])
         # Check if token already exists
         if any(bot["token"] == token for bot in cloned_bots):
             update.message.reply_text("⚠️ This bot token is already added! Try a different one! 😅")
             logger.info(f"⚠️ Admin {user_id} tried to add duplicate token ending {token[-4:]}")
             return
-        cloned_bots.append({"token": token})
+        # Store bot with visibility
+        cloned_bots.append({"token": token, "visibility": visibility, "owner_id": user_id})
         set_setting("cloned_bots", cloned_bots)
 
         # Dynamically start the cloned bot
@@ -88,12 +128,13 @@ def handle_clone_input(update: Update, context: CallbackContext):
         instance = start_cloned_bot(token, admin_ids)
         if instance:
             bot_instances.append(instance)
-            update.message.reply_text("✅ Cloned bot added and started! 🎉")
-            logger.info(f"✅ Admin {user_id} added and started cloned bot with token ending {token[-4:]}! 🌟")
+            update.message.reply_text(f"✅ Cloned bot added and started! 🎉\nVisibility: {visibility.upper()} 🔒")
+            logger.info(f"✅ Admin {user_id} added and started cloned bot with token ending {token[-4:]} and visibility {visibility}! 🌟")
         else:
             update.message.reply_text("⚠️ Cloned bot added but failed to start! Check the token! 😅")
             logger.info(f"⚠️ Admin {user_id} added cloned bot but failed to start, token ending {token[-4:]}")
         context.user_data["awaiting_clone_token"] = None
+        context.user_data["new_bot_visibility"] = None
     except Exception as e:
         update.message.reply_text("⚠️ Failed to add cloned bot! Check token! 😅")
         log_error(f"🚨 Clone input error for {user_id}: {str(e)}")
