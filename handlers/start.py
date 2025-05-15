@@ -17,7 +17,7 @@ def start(update: Update, context: CallbackContext):
         if user_id in admin_ids:
             buttons = [
                 [InlineKeyboardButton("🔍 Search Files", callback_data="search_files")],
-                [InlineKeyboardButton("🤖 Clone Bots", callback_data="view_clone_bots")],
+                [InlineKeyboardButton("🤖 Clone Bots", callback_data="create_clone_bot")],  # Fixed callback to trigger create_clone_bot
                 [InlineKeyboardButton("📢 Broadcast", callback_data="broadcast")],
                 [InlineKeyboardButton("📝 Tutorial", callback_data="tutorial")]
             ]
