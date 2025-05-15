@@ -7,16 +7,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 def broadcast(update: Update, context: CallbackContext):
-    """📢 Initiate a broadcast for admins to send to all users or a channel."""
+    """📢 Initiate a broadcast for admins (main bot only)."""
     user_id = update.effective_user.id
-    admin_ids = context.bot_data.get("admin_ids", [])
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized broadcast attempt by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized broadcast attempt by {user_id} on clone")
+        return
 
     try:
-        if str(user_id) not in admin_ids:
-            update.callback_query.answer("🚫 Admins only!")
-            log_error(f"🚨 Unauthorized broadcast attempt by {user_id}")
-            return
-
         context.user_data["awaiting_broadcast"] = True
         update.callback_query.message.reply_text(
             "📢 Send the message you want to broadcast! 🗣️\n"
@@ -35,10 +37,13 @@ def handle_broadcast_input(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if not context.user_data.get("awaiting_broadcast"):
         return
-
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.message.reply_text("🚫 Admins only!")
         log_error(f"🚨 Unauthorized broadcast input by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.message.reply_text("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized broadcast input by {user_id} on clone")
         return
 
     try:
@@ -67,6 +72,10 @@ def cancel_broadcast(update: Update, context: CallbackContext):
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized broadcast cancel by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized broadcast cancel by {user_id} on clone")
         return
 
     try:
