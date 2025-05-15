@@ -10,7 +10,7 @@ from handlers.search import search
 from handlers.request import handle_request
 from handlers.tutorial import tutorial
 from handlers.settings import handle_settings
-from handlers.broadcast import broadcast
+from handlers.broadcast import broadcast, handle_broadcast_input, cancel_broadcast
 from handlers.batch import batch
 from utils.logging_utils import log_error
 from utils.db_channel import get_cloned_bots
@@ -65,6 +65,7 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_clone_input))
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_broadcast_input))
     dispatcher.add_handler(CallbackQueryHandler(create_clone_bot, pattern="^create_clone_bot$"))
     dispatcher.add_handler(CallbackQueryHandler(view_clone_bots, pattern="^view_clone_bots$"))
     dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
@@ -73,6 +74,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
     dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
     dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
+    dispatcher.add_handler(CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$"))
     dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
     dispatcher.add_error_handler(error_handler)
 
@@ -99,13 +101,14 @@ def main():
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_caption_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_buttons_input))
             clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_broadcast_input))
             clone_dispatcher.add_handler(CallbackQueryHandler(set_custom_caption, pattern="^set_custom_caption$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(set_custom_buttons, pattern="^set_custom_buttons$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(tutorial, pattern="^tutorial$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(settings_menu, pattern="^settings$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(handle_settings, pattern="^(add_channel|remove_channel|set_force_sub|set_group_link|set_db_channel|set_log_channel|shortener|welcome_message|auto_delete|banner|set_webhook|anti_ban|enable_redis)$"))
             clone_dispatcher.add_handler(CallbackQueryHandler(broadcast, pattern="^broadcast$"))
-            clone_dispatcher.add_handler(CallbackQueryHandler(batch, pattern="^(generate_batch|edit_batch)$"))
+            clone_dispatcher.add_handler(CallbackQueryHandler(cancel_broadcast, pattern="^cancel_broadcast$"))
             clone_dispatcher.add_error_handler(error_handler)
             bot_instances.append(clone_updater)
             logger.info(f"✅ Started cloned bot with token ending {token[-4:]}! 🤖")
@@ -119,7 +122,7 @@ def main():
         updater.start_polling()
         logger.info("✅ Main bot started! 🚀")
     except Exception as e:
-        error_msg = f"🚨 Failed to start main bot: {str(e)}"
+        error_msg = f"Failed to start main bot: {str(e)}"
         logger.error(error_msg)
         log_error(error_msg)
         raise
