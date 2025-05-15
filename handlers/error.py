@@ -1,3 +1,4 @@
+from telegram import Update  # Added import for Update
 from telegram.ext import CallbackContext
 from utils.logging_utils import log_error
 import logging
