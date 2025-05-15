@@ -1,42 +1,24 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import CallbackContext
-from utils.db_channel import get_setting
 from utils.logging_utils import log_error
 import logging
 
 logger = logging.getLogger(__name__)
 
 def tutorial(update: Update, context: CallbackContext):
-    """📚 Show a tutorial on using the Cloner Bot!"""
+    """📝 Show a tutorial for using the bot."""
     user_id = update.effective_user.id
-    admin_ids = context.bot_data.get("admin_ids", [])
 
     try:
-        if str(user_id) not in admin_ids:
-            update.callback_query.answer("🚫 Admins only!")
-            log_error(f"🚨 Unauthorized tutorial access by {user_id}")
-            return
-
-        group_link = get_setting("group_link", "https://t.me/+default_group")
-        if not group_link.startswith("https://t.me/"):
-            group_link = "https://t.me/+default_group"
-            log_error(f"⚠️ Invalid group link for user {user_id}, using default")
-
-        update.callback_query.message.reply_text(
-            "📚 Cloner Bot Tutorial! 🌟\n\n"
-            "Welcome to @bot_paiyan_official! Here’s how to use me:\n"
-            "1. 🔍 Use /search to find files in storage channels.\n"
-            "2. 📬 Send text to request files (non-admins, join the group!).\n"
-            "3. 🤖 Create clone bots via Settings > Clone Bots.\n"
-            "4. 📝 Customize captions/buttons in Settings.\n"
-            "5. 📢 Broadcast messages to users (admins only).\n\n"
-            "Need help? Join our group! 🚀",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("Join Group 🌐", url=group_link)],
-                [InlineKeyboardButton("Back to Menu ↩️", callback_data="settings")]
-            ])
+        tutorial_text = (
+            "📝 Welcome to the @bot_paiyan_official Tutorial! 🌟\n\n"
+            "1️⃣ Use /start to see the main menu.\n"
+            "2️⃣ Use /search <term> to find files.\n"
+            "3️⃣ Admins can manage settings, clone bots, and more!\n"
+            "4️⃣ Have fun cloning and sharing files! 🎉"
         )
-        logger.info(f"✅ Admin {user_id} viewed tutorial! 🎉")
+        update.callback_query.message.reply_text(tutorial_text)
+        logger.info(f"✅ User {user_id} viewed tutorial! 🌟")
     except Exception as e:
-        update.callback_query.message.reply_text("⚠️ Oops! Tutorial failed! Try again! 😅")
+        update.callback_query.message.reply_text("⚠️ Failed to load tutorial! Try again! 😅")
         log_error(f"🚨 Tutorial error for user {user_id}: {str(e)}")
