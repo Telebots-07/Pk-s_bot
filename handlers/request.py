@@ -1,35 +1,36 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes
-from utils.db_channel import store_file_metadata, get_setting
+from telegram.ext import CallbackContext
+from utils.db_channel import get_setting
 from utils.logging_utils import log_error
-import uuid
+import logging
 
-async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle group text as requests with hidden link previews."""
+logger = logging.getLogger(__name__)
+
+def handle_request(update: Update, context: CallbackContext):
+    """📬 Handle user file requests, redirect non-admins to group."""
     user_id = update.effective_user.id
-    group_id = await get_setting("group_id")
-    
-    if str(update.message.chat_id) != str(group_id):
-        return
+    admin_ids = context.bot_data.get("admin_ids", [])
 
-    text = update.message.text
     try:
-        request_id = str(uuid.uuid4())
-        await store_file_metadata({
-            "type": "request",
-            "request_id": request_id,
-            "user_id": user_id,
-            "text": text,
-            "date": datetime.now().strftime("%Y-%m-%d")
-        })
-        await update.message.reply_text(
-            f"✅ Request submitted: {text}",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("View Status 🔍", callback_data=f"status_{request_id}")]
-            ]),
-            disable_web_page_preview=True
-        )
-        logger.info(f"✅ Request submitted by {user_id}: {request_id}")
+        if str(user_id) in admin_ids:
+            request_text = update.message.text.strip()
+            update.message.reply_text(
+                f"📬 Admin, your request: '{request_text}' has been noted! 🔍\n"
+                "We'll process it in the storage channels! 🗄️"
+            )
+            logger.info(f"✅ Admin {user_id} submitted request: {request_text}! 🌟")
+        else:
+            group_link = get_setting("group_link", "https://t.me/+default_group")
+            if not group_link.startswith("https://t.me/"):
+                group_link = "https://t.me/+default_group"
+                log_error(f"⚠️ Invalid group link for user {user_id}, using default")
+            update.message.reply_text(
+                "📬 Please submit file requests in our group! 🌐",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("Join Group 🚀", url=group_link)]
+                ])
+            )
+            logger.info(f"✅ Non-admin {user_id} redirected to group for request! 🌟")
     except Exception as e:
-        await update.message.reply_text("⚠️ Failed to submit request!")
-        await log_error(f"Request error for {user_id}: {str(e)}")
+        update.message.reply_text("⚠️ Oops! Request failed! Try again! 😅")
+        log_error(f"🚨 Request error for user {user_id}: {str(e)}")
