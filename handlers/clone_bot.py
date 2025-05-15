@@ -3,7 +3,6 @@ from telegram.ext import CallbackContext
 from utils.db_channel import get_setting, set_setting
 from utils.logging_utils import log_error
 import logging
-from bot import start_cloned_bot, bot_instances  # Import to dynamically start bot
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +58,8 @@ def view_clone_bots(update: Update, context: CallbackContext):
 
 def handle_clone_input(update: Update, context: CallbackContext):
     """🤖 Handle bot token input for cloning and start the bot dynamically."""
+    from bot import start_cloned_bot, bot_instances  # Moved import inside function to avoid circular import
+
     user_id = str(update.effective_user.id)
     if not context.user_data.get("awaiting_clone_token"):
         return
