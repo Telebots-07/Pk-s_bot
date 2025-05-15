@@ -23,8 +23,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global list to keep track of running bot instances
+bot_instances = []
+
+def start_cloned_bot(token, admin_ids):
+    """🤖 Start a cloned bot instance dynamically."""
+    try:
+        clone_updater = Updater(token, use_context=True)
+        clone_dispatcher = clone_updater.dispatcher
+        clone_context_data = {"admin_ids": admin_ids, "is_main_bot": False}
+        clone_dispatcher.bot_data.update(clone_context_data)
+        # Limited handlers for cloned bots (no admin features)
+        clone_dispatcher.add_handler(CommandHandler("start", start))
+        clone_dispatcher.add_handler(CommandHandler("search", search))
+        clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
+        clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
+        clone_dispatcher.add_error_handler(error_handler)
+        clone_updater.start_polling()
+        logger.info(f"✅ Started cloned bot with token ending {token[-4:]}! 🤖")
+        return clone_updater
+    except Exception as e:
+        error_msg = f"🚨 Failed to start cloned bot: {str(e)}"
+        logger.error(error_msg)
+        log_error(error_msg)
+        return None
+
 def main():
     """🚀 Initialize and run the bot with cloned bots and custom captions/buttons."""
+    global bot_instances
+
     # 🔑 Load static env vars
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
     ADMIN_IDS = os.getenv("ADMIN_IDS")
@@ -36,7 +63,8 @@ def main():
         raise ValueError(error_msg)
 
     try:
-        admin_ids = [int(id.strip()) for id in ADMIN_IDS.split(",")]
+        admin_ids = [str(id.strip()) for id in ADMIN_IDS.split(",")]  # Convert to strings
+        logger.info(f"✅ Loaded admin IDs: {admin_ids}")
     except ValueError:
         error_msg = "🚨 Invalid ADMIN_IDS format"
         logger.error(error_msg)
@@ -94,26 +122,12 @@ def main():
         log_error(error_msg)
         cloned_bots = []
 
+    # Start cloned bots initially
     bot_instances = []
     for bot in cloned_bots:
-        try:
-            token = bot["token"]
-            clone_updater = Updater(token, use_context=True)
-            clone_dispatcher = clone_updater.dispatcher
-            clone_context_data = {"admin_ids": admin_ids, "is_main_bot": False}
-            clone_dispatcher.bot_data.update(clone_context_data)
-            # Limited handlers for cloned bots (no admin features)
-            clone_dispatcher.add_handler(CommandHandler("start", start))
-            clone_dispatcher.add_handler(CommandHandler("search", search))
-            clone_dispatcher.add_handler(MessageHandler(Filters.document | Filters.photo | Filters.video | Filters.audio, handle_file))
-            clone_dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_request))
-            clone_dispatcher.add_error_handler(error_handler)
-            bot_instances.append(clone_updater)
-            logger.info(f"✅ Started cloned bot with token ending {token[-4:]}! 🤖")
-        except Exception as e:
-            error_msg = f"🚨 Failed to start cloned bot: {str(e)}"
-            logger.error(error_msg)
-            log_error(error_msg)
+        instance = start_cloned_bot(bot["token"], admin_ids)
+        if instance:
+            bot_instances.append(instance)
 
     # 🌍 Start main bot
     try:
@@ -124,16 +138,6 @@ def main():
         logger.error(error_msg)
         log_error(error_msg)
         raise
-
-    # 🔄 Start cloned bots
-    for clone_updater in bot_instances:
-        try:
-            clone_updater.start_polling()
-            logger.info("✅ Cloned bot instance started! 🌟")
-        except Exception as e:
-            error_msg = f"🚨 Failed to start cloned bot instance: {str(e)}"
-            logger.error(error_msg)
-            log_error(error_msg)
 
     # 💤 Keep the main thread running
     updater.idle()
