@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import CallbackContext
 from utils.db_channel import get_setting, set_setting
 from utils.logging_utils import log_error
@@ -87,7 +87,7 @@ def view_clone_bots(update: Update, context: CallbackContext):
             update.callback_query.message.reply_text("⚠️ No cloned bots found! Create one first! 😅")
             logger.info(f"✅ Admin {user_id} viewed clone bots - none found! 🌟")
             return
-        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]} | Visibility: {bot['visibility'].upper()}" for bot in cloned_bots])
+        response = "🤖 Cloned Bots:\n\n" + "\n".join([f"🔑 Token ending: {bot['token'][-4:]} | Visibility: {bot['visibility'].upper()} | Standalone: {bot.get('standalone', False)}" for bot in cloned_bots])
         update.callback_query.message.reply_text(response)
         logger.info(f"✅ Admin {user_id} viewed {len(cloned_bots)} cloned bots! 🌟")
     except Exception as e:
@@ -113,28 +113,63 @@ def handle_clone_input(update: Update, context: CallbackContext):
     try:
         token = update.message.text.strip()
         visibility = context.user_data.get("new_bot_visibility", "public")  # Default to public if not set
+
+        # Validate token format (basic check)
+        if not token or ":" not in token or len(token.split(":")) != 2:
+            update.message.reply_text("⚠️ Invalid token format! It should look like '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11'. Try again! 😅")
+            logger.info(f"⚠️ Admin {user_id} provided invalid token format: {token}")
+            return
+
+        # Verify token with Telegram API
+        try:
+            bot = Bot(token)
+            bot_info = bot.get_me()  # This will raise an exception if the token is invalid
+            bot_username = bot_info.username
+            logger.info(f"✅ Token verification successful for bot @{bot_username} with token ending {token[-4:]}")
+        except Exception as e:
+            update.message.reply_text(f"⚠️ Token verification failed! Error: {str(e)}\nMake sure the token is correct and not revoked. Try again! 😅")
+            logger.error(f"🚨 Token verification failed for user {user_id}: {str(e)}")
+            return
+
         cloned_bots = get_setting("cloned_bots", [])
         # Check if token already exists
-        if any(bot["token"] == token for bot in cloned_bots):
-            update.message.reply_text("⚠️ This bot token is already added! Try a different one! 😅")
-            logger.info(f"⚠️ Admin {user_id} tried to add duplicate token ending {token[-4:]}")
+        existing_bot = next((bot for bot in cloned_bots if bot["token"] == token), None)
+        if existing_bot:
+            standalone_status = "running independently" if existing_bot.get("standalone", False) else "managed by Cloner Bot"
+            update.message.reply_text(f"⚠️ This bot token is already added! It’s @{bot_username} ({standalone_status}). Try a different token! 😅")
+            logger.info(f"⚠️ Admin {user_id} tried to add duplicate token ending {token[-4:]} for @{bot_username}")
             return
-        # Store bot with visibility
-        cloned_bots.append({"token": token, "visibility": visibility, "owner_id": user_id})
+
+        # Check if this token matches the FILESTORE_TOKEN (to mark as standalone)
+        filestore_token = os.getenv("FILESTORE_TOKEN")
+        is_standalone = token == filestore_token
+
+        # Store bot with visibility and standalone status
+        cloned_bots.append({
+            "token": token,
+            "visibility": visibility,
+            "owner_id": user_id,
+            "standalone": is_standalone
+        })
         set_setting("cloned_bots", cloned_bots)
 
-        # Dynamically start the cloned bot
-        admin_ids = context.bot_data.get("admin_ids", [])
-        instance = start_cloned_bot(token, admin_ids)
-        if instance:
-            bot_instances.append(instance)
-            update.message.reply_text(f"✅ Cloned bot added and started! 🎉\nVisibility: {visibility.upper()} 🔒")
-            logger.info(f"✅ Admin {user_id} added and started cloned bot with token ending {token[-4:]} and visibility {visibility}! 🌟")
+        # Dynamically start the cloned bot (if not standalone)
+        if not is_standalone:
+            admin_ids = context.bot_data.get("admin_ids", [])
+            instance = start_cloned_bot(token, admin_ids)
+            if instance:
+                bot_instances.append(instance)
+                update.message.reply_text(f"✅ Cloned bot @{bot_username} added and started! 🎉\nVisibility: {visibility.upper()} 🔒")
+                logger.info(f"✅ Admin {user_id} added and started cloned bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🌟")
+            else:
+                update.message.reply_text(f"⚠️ Cloned bot @{bot_username} added but failed to start! Check the token or logs! 😅")
+                logger.info(f"⚠️ Admin {user_id} added cloned bot @{bot_username} but failed to start, token ending {token[-4:]}")
         else:
-            update.message.reply_text("⚠️ Cloned bot added but failed to start! Check the token! 😅")
-            logger.info(f"⚠️ Admin {user_id} added cloned bot but failed to start, token ending {token[-4:]}")
+            update.message.reply_text(f"✅ Cloned bot @{bot_username} added as standalone (running independently)! 🎉\nVisibility: {visibility.upper()} 🔒")
+            logger.info(f"✅ Admin {user_id} added standalone bot @{bot_username} with token ending {token[-4:]} and visibility {visibility}! 🌟")
+
         context.user_data["awaiting_clone_token"] = None
         context.user_data["new_bot_visibility"] = None
     except Exception as e:
-        update.message.reply_text("⚠️ Failed to add cloned bot! Check token! 😅")
+        update.message.reply_text("⚠️ Failed to add cloned bot! Check token or logs! 😅")
         log_error(f"🚨 Clone input error for {user_id}: {str(e)}")
