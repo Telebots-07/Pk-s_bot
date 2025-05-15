@@ -8,16 +8,18 @@ import json
 logger = logging.getLogger(__name__)
 
 def batch(update: Update, context: CallbackContext):
-    """📦 Handle batch generation or editing for admins."""
+    """📦 Handle batch generation or editing for admins (main bot only)."""
     user_id = update.effective_user.id
-    admin_ids = context.bot_data.get("admin_ids", [])
+    if str(user_id) not in context.bot_data.get("admin_ids", []):
+        update.callback_query.answer("🚫 Admins only!")
+        log_error(f"🚨 Unauthorized batch access by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized batch access by {user_id} on clone")
+        return
 
     try:
-        if str(user_id) not in admin_ids:
-            update.callback_query.answer("🚫 Admins only!")
-            log_error(f"🚨 Unauthorized batch access by {user_id}")
-            return
-
         callback_data = update.callback_query.data
         if callback_data == "generate_batch":
             context.user_data["awaiting_batch_name"] = "generate"
@@ -50,10 +52,13 @@ def handle_batch_input(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     if not context.user_data.get("awaiting_batch_name"):
         return
-
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.message.reply_text("🚫 Admins only!")
         log_error(f"🚨 Unauthorized batch input by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.message.reply_text("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized batch input by {user_id} on clone")
         return
 
     try:
@@ -83,6 +88,10 @@ def handle_batch_edit(update: Update, context: CallbackContext):
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized batch edit by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized batch edit by {user_id} on clone")
         return
 
     try:
@@ -114,6 +123,10 @@ def cancel_batch(update: Update, context: CallbackContext):
     if str(user_id) not in context.bot_data.get("admin_ids", []):
         update.callback_query.answer("🚫 Admins only!")
         log_error(f"🚨 Unauthorized batch cancel by {user_id}")
+        return
+    if not context.bot_data.get("is_main_bot", False):
+        update.callback_query.answer("🚫 Main bot only!")
+        log_error(f"🚨 Unauthorized batch cancel by {user_id} on clone")
         return
 
     try:
